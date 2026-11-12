@@ -1,6 +1,9 @@
 import type { Session } from '@supabase/supabase-js'
 import { resolveProfileAvatarUrls } from './profileAvatars'
 import { requireSupabase } from './supabase'
+import { validateUsername } from './usernames'
+
+export { validateUsername } from './usernames'
 
 export type PublicProfile = {
   id: string
@@ -13,16 +16,6 @@ type EdgeSession = {
   access_token: string
   refresh_token: string
   profile: PublicProfile
-}
-
-const usernamePattern = /^(?=.{3,24}$)[a-zA-Z0-9._]+(?: [a-zA-Z0-9._]+)*$/
-
-export function validateUsername(username: string) {
-  const value = username.trim()
-  if (!usernamePattern.test(value)) {
-    throw new Error('Use 3–24 letters, numbers, periods, underscores, and single spaces for your username.')
-  }
-  return value
 }
 
 async function invokeSessionFunction(name: string, body: Record<string, string>) {

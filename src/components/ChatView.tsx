@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type TouchEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent, type TouchEvent } from 'react'
 import {
   ArrowDown, ArrowLeft, BarChart3, Bell, Check, ChevronDown, Circle, Eye, MessageSquare,
   ImagePlus, Laugh, MessageCircle, Mic, Paperclip, Pause, Pencil, Play, Plus, Search, Send,
@@ -10,6 +10,11 @@ import type { CommunityMember, DemoMessage, MentionNotification, MessagePoll } f
 import type { MessageMedia } from '../types'
 import { MAX_MEDIA_BYTES, MAX_OUTBOX_BYTES, MediaAccessError, normalizeMediaType } from '../lib/media'
 import { getStickerOption, isIllustratedSticker, isImageSticker, stickerOptions } from '../lib/stickers'
+import {
+  usernameMentionPattern,
+  usernameMentionQueryPattern,
+  usernameMentionTokenPattern,
+} from '../lib/usernames'
 
 const quickReactions = ['👍', '❤️', '😂', '😮', '😢', '🙏']
 
@@ -43,13 +48,28 @@ function groupImageMessages(messages: DemoMessage[]): DisplayMessage[] {
 }
 
 function renderMessageBody(body: string, memberUsernames: Set<string>) {
-  return body.split(/(^|\s)(@"[A-Za-z0-9._]+(?: [A-Za-z0-9._]+)*"|@[A-Za-z0-9._]+)/g).map((part, index) => {
-    const mention = part.match(/^@"(.+)"$|^@([A-Za-z0-9._]+)$/)
+  return body.split(usernameMentionPattern).map((part, index) => {
+    const mention = part.match(usernameMentionTokenPattern)
     const username = mention?.[1] ?? mention?.[2]
     return username && memberUsernames.has(username.toLowerCase())
       ? <span className="message-mention" key={`${index}-${part}`}>{part}</span>
       : part
   })
+}
+
+function messageAuthorStyle(identity: string): CSSProperties {
+  let hash = 2166136261
+  for (const character of identity) {
+    hash ^= character.codePointAt(0) ?? 0
+    hash = Math.imul(hash, 16777619)
+  }
+  const color = hash >>> 0
+  return {
+    '--message-author-hue': color % 360,
+    '--message-author-saturation': `${62 + ((color >>> 9) % 24)}%`,
+    '--message-author-dark-lightness': `${63 + ((color >>> 15) % 12)}%`,
+    '--message-author-light-lightness': `${34 + ((color >>> 20) % 12)}%`,
+  } as CSSProperties
 }
 
 type ChatViewProps = {
@@ -619,7 +639,7 @@ export function ChatView({
     ? 'preview'
     : !online || connectionStatus === 'disconnected' ? 'offline' : ''
   const updatesPaused = liveMessages && connectionStatus === 'disconnected'
-  const mentionMatch = draft.match(/(?:^|\s)@(?:"([^"]*)"?|([A-Za-z0-9._]*))$/)
+  const mentionMatch = draft.match(usernameMentionQueryPattern)
   const mentionQuery = mentionMatch?.[1] ?? mentionMatch?.[2] ?? ''
   const mentionSuggestions = mentionMatch
     ? mentionMembers
@@ -1218,7 +1238,7 @@ export function ChatView({
           {loadingEarlier ? 'Loading earlier messages…' : 'Load earlier messages'}
         </button>}
         {loadingMessages && !messages.length && <p className="chat-loading">Loading conversation…</p>}
-        <div className="message-list" aria-live="polite">
+        <div className={`message-list ${selectionMode ? 'selection-mode' : ''}`} aria-live="polite">
           {displayMessages.map(({ message, imageGroup, sourceIndex }) => {
             if (message.systemEvent === 'username_changed') {
               return <article className="system-message-row" data-message-id={message.id} key={message.id}>
@@ -1242,6 +1262,9 @@ export function ChatView({
               || Date.parse(message.createdAt) - Date.parse(previousMessage.createdAt) <= 5 * 60_000
             const grouped = Boolean(previousMessage && sameAuthor && withinGroupWindow)
             const selected = actionMessageIds.some((id) => selectedMessageIds.includes(id))
+            const replyTarget = message.replyToId
+              ? messages.find((candidate) => candidate.id === message.replyToId)
+              : undefined
             const baseReactions = message.reactions ?? []
             const overrides = reactionOverrides[message.id] ?? {}
             const displayReactions = baseReactions
@@ -1272,6 +1295,7 @@ export function ChatView({
             return (
               <article
                 className={`message-row ${message.mine ? 'mine' : ''} ${grouped ? 'grouped' : ''} ${selected ? 'message-selected' : ''} ${reactions.length ? 'message-has-reactions' : ''} ${menuFor === message.id ? 'menu-open' : ''} ${reactionPickerFor === message.id ? 'reaction-picker-open' : ''}`}
+                style={messageAuthorStyle(message.authorId ?? message.author)}
                 data-message-id={message.id}
                 data-message-ids={actionMessageIds.join(' ')}
                 key={message.mediaGroupId && imageGroup ? `media-group-${message.mediaGroupId}` : message.id}
@@ -1297,14 +1321,14 @@ export function ChatView({
                   type="button"
                   aria-label={`${selected ? 'Deselect' : 'Select'} message`}
                   aria-pressed={selected}
-                >{selected ? <Check size={14} /> : <Circle size={14} />}</button>}
+                >{selected ? <Check size={13} /> : <i aria-hidden="true" />}</button>}
                 <div className="message-content">
                   <div className={`bubble-wrap ${reactions.length ? 'has-reactions' : ''} ${menuFor === message.id && menuOpensDown ? 'menu-opens-down' : ''} ${reactionPickerFor === message.id && reactionPickerOpensDown ? 'reaction-picker-opens-down' : ''}`}>
                     {hasTextBubble && <div className={`message-bubble ${message.mine ? 'bubble-mine' : ''} ${message.deletedAt ? 'message-deleted' : ''}`}>
                       {!message.mine && !grouped && <strong className="message-author">{message.author}</strong>}
                       {message.replyToId && <button className="message-reply-preview" onClick={() => { void jumpToReply(message.replyToId!) }} type="button" aria-label="Jump to the message this replies to">
-                        <strong>{message.replyPreview?.author ?? messages.find((candidate) => candidate.id === message.replyToId)?.author ?? 'Reply'}</strong>
-                        <span>{renderMessageBody(message.replyPreview?.body ?? messages.find((candidate) => candidate.id === message.replyToId)?.body ?? 'Original message unavailable', memberUsernames)}</span>
+                        <strong style={messageAuthorStyle(replyTarget?.authorId ?? replyTarget?.author ?? message.replyPreview?.author ?? 'former member')}>{message.replyPreview?.author ?? replyTarget?.author ?? 'Reply'}</strong>
+                        <span>{renderMessageBody(message.replyPreview?.body ?? replyTarget?.body ?? 'Original message unavailable', memberUsernames)}</span>
                       </button>}
                       {!visiblePoll && !visibleSticker && <span className="message-body">{renderMessageBody(message.body, memberUsernames)}</span>}
                       {footerOnBubble && <MessageFooter message={message} liveMessages={liveMessages ?? false} onRetry={onRetryMessage} />}

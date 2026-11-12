@@ -1,8 +1,14 @@
 export function validateUsername(value: unknown) {
   if (typeof value !== 'string') throw new Error('Enter a username.')
   const username = value.trim()
-  if (!/^(?=.{3,24}$)[A-Za-z0-9._]+(?: [A-Za-z0-9._]+)*$/.test(username)) {
-    throw new Error('Use 3–24 letters, numbers, periods, underscores, and single spaces for your username.')
+  const usernameCharacter = String.raw`(?:[A-Za-z0-9._#*]|\p{Emoji}(?:\uFE0F)?|\p{Emoji_Modifier}|\p{Regional_Indicator}|\p{Extended_Pictographic}|\u200D|\uFE0E|\uFE0F|\u20E3|[\u{E0020}-\u{E007F}])`
+  const usernameSegment = `${usernameCharacter}+`
+  const usernamePattern = new RegExp(
+    `^(?=.{3,24}$)${usernameSegment}(?: ${usernameSegment})*$`,
+    'u',
+  )
+  if (!usernamePattern.test(username)) {
+    throw new Error('Use 3–24 letters, numbers, periods, underscores, emoji, and single spaces for your username.')
   }
   return username
 }

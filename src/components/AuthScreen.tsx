@@ -204,9 +204,9 @@ export function AuthScreen({ initialMode, onAuthenticated }: AuthScreenProps) {
             </>}
             {mode === 'admin'
               ? <label>Administrator email<div className="input-with-icon"><span>@</span><input required type="email" value={adminEmail} onChange={(event) => setAdminEmail(event.target.value)} autoComplete="username" placeholder="admin@isomo.rw" /></div></label>
-              : <label>Username<div className="input-with-icon"><span>@</span><input required minLength={3} maxLength={24} pattern="[A-Za-z0-9._]+( [A-Za-z0-9._]+)*" value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" placeholder="No way out" aria-describedby={mode === 'register' ? 'username-status' : undefined} /></div>
+              : <label>Username<div className="input-with-icon"><span>@</span><input required minLength={3} maxLength={48} value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" placeholder="No way out 😎" aria-describedby={mode === 'register' ? 'username-status' : undefined} /></div>
                 {mode === 'register' && <small id="username-status" className={`availability availability-${availability}`}>
-                  {usernameAvailability === 'checking' ? 'Checking availability…' : usernameAvailability === 'available' ? 'This username is available.' : usernameAvailability === 'taken' ? 'That username is already taken.' : usernameAvailability === 'error' ? 'Availability check failed. The server will still verify on submit.' : 'Use 3–24 letters, numbers, periods, underscores, and single spaces.'}
+                  {usernameAvailability === 'checking' ? 'Checking availability…' : usernameAvailability === 'available' ? 'This username is available.' : usernameAvailability === 'taken' ? 'That username is already taken.' : usernameAvailability === 'error' ? 'Availability check failed. The server will still verify on submit.' : 'Use 3–24 letters, numbers, periods, underscores, emoji, and single spaces.'}
                 </small>}
               </label>}
             {mode === 'register' && <>
