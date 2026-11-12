@@ -3,6 +3,7 @@ import { AlertTriangle, Bell, Camera, Check, ChevronRight, KeyRound, Moon, Shiel
 import { changeUsername, deleteOwnAccount, usernameAvailable } from '../lib/auth'
 import { PROFILE_AVATAR_BUCKET } from '../lib/profileAvatars'
 import { requireSupabase } from '../lib/supabase'
+import type { NativeNotificationPermission } from '../lib/nativeNotifications'
 
 type ProfileViewProps = {
   theme: 'dark' | 'light'
@@ -12,6 +13,8 @@ type ProfileViewProps = {
   avatarPath: string | null
   userId?: string
   notificationsEnabled: boolean
+  nativeApp: boolean
+  notificationPermission: NativeNotificationPermission
   settingsError: string
   profileError: string
   profileEnabled: boolean
@@ -34,6 +37,8 @@ export function ProfileView({
   avatarPath,
   userId,
   notificationsEnabled,
+  nativeApp,
+  notificationPermission,
   settingsError,
   profileError,
   profileEnabled,
@@ -284,10 +289,23 @@ export function ProfileView({
       <div className="profile-card preferences">
         <div className="settings-title"><div><h2>Preferences</h2><p>The little things, just how you like them.</p></div></div>
         <button className="preference-row" onClick={onToggleTheme} type="button"><span className="preference-icon">{theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}</span><span><strong>Appearance</strong><small>{theme === 'dark' ? 'Dark mode' : 'Light mode'}</small></span><ChevronRight size={17} /></button>
-        <button className="preference-row" onClick={() => void onNotificationsChanged(!notificationsEnabled)} type="button" aria-pressed={notificationsEnabled}>
+        <button
+          className="preference-row"
+          onClick={() => void onNotificationsChanged(!notificationsEnabled || (nativeApp && notificationPermission !== 'granted'))}
+          type="button"
+          aria-pressed={notificationsEnabled && (!nativeApp || notificationPermission === 'granted')}
+        >
           <span className="preference-icon"><Bell size={17} /></span>
-          <span><strong>Activity notifications</strong><small>{notificationsEnabled ? 'Mention notifications are on' : 'Mention notifications are off'}</small></span>
-          <span className={`settings-toggle ${notificationsEnabled ? 'enabled' : ''}`} aria-hidden="true"><i /></span>
+          <span><strong>Activity notifications</strong><small>{nativeApp
+            ? notificationPermission === 'denied'
+              ? 'Allow notifications in Android settings'
+              : notificationPermission === 'unavailable'
+                ? 'Android notifications are unavailable'
+                : notificationPermission !== 'granted'
+                  ? 'Tap to allow Android mention alerts'
+                  : notificationsEnabled ? 'Mention alerts are on' : 'Mention alerts are off'
+            : notificationsEnabled ? 'Mention notifications are on' : 'Mention notifications are off'}</small></span>
+          <span className={`settings-toggle ${notificationsEnabled && (!nativeApp || notificationPermission === 'granted') ? 'enabled' : ''}`} aria-hidden="true"><i /></span>
         </button>
         <div className="preference-row password-preference">
           <span className="preference-icon"><KeyRound size={17} /></span>

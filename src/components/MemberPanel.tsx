@@ -1,4 +1,4 @@
-import { ArrowUpRight, Check, ShieldCheck, X } from 'lucide-react'
+import { ArrowLeft, ArrowUpRight, Check, ShieldCheck, X } from 'lucide-react'
 import type { CommunityMember } from '../types'
 
 type MemberPanelProps = {
@@ -30,7 +30,10 @@ export function MemberPanel({
     <aside className="member-panel mobile-open">
       <div className="panel-title-row">
         <div><p className="eyebrow">THE COMMUNITY</p><h2>About the room</h2></div>
-        <button className="panel-icon panel-close" onClick={onClose} type="button" aria-label="Close community panel"><X size={16} /></button>
+        <button className="panel-icon panel-close" onClick={onClose} type="button" aria-label="Close community panel">
+          <X className="desktop-panel-close-icon" size={16} />
+          <ArrowLeft className="mobile-panel-back-icon" size={18} />
+        </button>
       </div>
       <div className="community-card">
         <div className="community-cover"><span>ISOMO <i>✳</i> TEA</span></div>

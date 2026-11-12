@@ -1,4 +1,5 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { Capacitor } from '@capacitor/core'
 import { ChatView } from './components/ChatView'
 import { AuthScreen } from './components/AuthScreen'
 import { AdminDashboard } from './components/AdminDashboard'
@@ -17,6 +18,12 @@ import { useCommunityMembers } from './hooks/useCommunityMembers'
 import { usePrivateInbox } from './hooks/usePrivateInbox'
 import { useCommunitySettings } from './hooks/useCommunitySettings'
 import { loadUserSettings, saveUserSettings } from './lib/settings'
+import {
+  checkNativeNotificationPermission,
+  requestNativeNotificationPermission,
+  showNativeMentionNotification,
+  type NativeNotificationPermission,
+} from './lib/nativeNotifications'
 import { supabase } from './lib/supabase'
 import './App.css'
 
@@ -26,6 +33,7 @@ function readTheme(): 'dark' | 'light' {
 }
 
 function AppContent() {
+  const nativeApp = Capacitor.isNativePlatform()
   const [section, setSection] = useState<AppSection>('welcome')
   const [theme, setTheme] = useState<'dark' | 'light'>(readTheme)
   const [showMembers, setShowMembers] = useState(false)
@@ -34,10 +42,14 @@ function AppContent() {
   const [privateConversationId, setPrivateConversationId] = useState<string | null>(null)
   const [startingConversation, setStartingConversation] = useState(false)
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
+  const [notificationPermission, setNotificationPermission] = useState<NativeNotificationPermission>(
+    nativeApp ? 'prompt' : 'unavailable',
+  )
   const [settingsError, setSettingsError] = useState('')
   const [deltaUnreadCount, setDeltaUnreadCount] = useState(0)
   const [deltaUnreadError, setDeltaUnreadError] = useState('')
   const [deltaReadMarker, setDeltaReadMarker] = useState<{ userId: string; readAt: string } | null>(null)
+  const mentionSnapshot = useRef<{ userId: string; ids: Set<string> } | null>(null)
   const { session, profile, isAdministrator, administratorError, loading, profileError, refreshProfile, clearSession } = useAuth()
   const userId = session?.user.id
   const communitySettings = useCommunitySettings(userId)
@@ -67,6 +79,62 @@ function AppContent() {
     || (latestGeneralMessage?.media
       ? `${latestGeneralMessage.media.kind === 'image' ? 'Photo' : latestGeneralMessage.media.kind === 'video' ? 'Video' : 'Audio'}${latestGeneralMessage.media.viewOnce ? ' · View once' : ''}`
       : latestGeneralMessage?.poll ? 'Poll' : latestGeneralMessage?.sticker ? 'Sticker' : null)
+
+  useEffect(() => {
+    if (!nativeApp) return undefined
+    let active = true
+    const refreshPermission = async () => {
+      try {
+        const permission = await checkNativeNotificationPermission()
+        if (active) setNotificationPermission(permission)
+      } catch (error) {
+        if (!active) return
+        console.error('Could not check Android notification permission.', error)
+        setNotificationPermission('unavailable')
+      }
+    }
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void refreshPermission()
+    }
+    void refreshPermission()
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    window.addEventListener('focus', handleVisibilityChange)
+    return () => {
+      active = false
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+      window.removeEventListener('focus', handleVisibilityChange)
+    }
+  }, [nativeApp])
+
+  useEffect(() => {
+    if (!userId) {
+      mentionSnapshot.current = null
+      return
+    }
+    if (!generalChat.mentionsReady) return
+    const mentions = generalChat.mentions
+    const currentIds = new Set(mentions.map((mention) => `${mention.conversationId}:${mention.messageId}`))
+    const previous = mentionSnapshot.current
+    mentionSnapshot.current = { userId, ids: currentIds }
+    if (!previous || previous.userId !== userId) return
+    const newMentions = mentions.filter((mention) => (
+      !previous.ids.has(`${mention.conversationId}:${mention.messageId}`)
+      && !mention.readAt
+    ))
+    if (!nativeApp || !notificationsEnabled || notificationPermission !== 'granted' || document.visibilityState === 'visible') return
+    for (const mention of newMentions) {
+      void showNativeMentionNotification(mention).catch((error: unknown) => {
+        console.error('Could not show an Android mention notification.', error)
+      })
+    }
+  }, [
+    generalChat.mentions,
+    generalChat.mentionsReady,
+    nativeApp,
+    notificationPermission,
+    notificationsEnabled,
+    userId,
+  ])
 
   useEffect(() => {
     if (!session) return
@@ -156,6 +224,22 @@ function AppContent() {
   async function changeNotifications(enabled: boolean) {
     if (!session) return
     const previous = notificationsEnabled
+    if (enabled && nativeApp) {
+      try {
+        const permission = await requestNativeNotificationPermission()
+        setNotificationPermission(permission)
+        if (permission !== 'granted') {
+          setSettingsError(permission === 'denied'
+            ? 'Notifications are blocked. Allow Isomo Tea notifications in Android settings, then try again.'
+            : 'Android did not grant notification permission. Please try again.')
+          return
+        }
+      } catch (error) {
+        console.error('Could not request Android notification permission.', error)
+        setSettingsError('Android notification permission could not be requested. Please try again.')
+        return
+      }
+    }
     setNotificationsEnabled(enabled)
     try {
       await saveUserSettings(session.user.id, { notifications_enabled: enabled })
@@ -226,6 +310,24 @@ function AppContent() {
     : authenticatedSection && (!session || loading)
       ? 'welcome'
       : section
+  const nativeMobileChat = nativeApp && (visibleSection === 'tea' || privateChatEnabled)
+  const nativeMobileChatList = nativeApp
+    && visibleSection === 'inbox'
+    && !privateChatEnabled
+    && !startingConversation
+  const nativeMobilePicker = nativeApp
+    && visibleSection === 'inbox'
+    && !privateChatEnabled
+    && startingConversation
+  const appShellClasses = [
+    'app-shell',
+    showMembers && visibleSection === 'tea' ? 'members-open' : '',
+    nativeApp ? 'native-app-shell' : '',
+    nativeMobileChat ? 'native-mobile-chat' : '',
+    nativeMobileChatList ? 'native-mobile-chat-list' : '',
+    nativeMobilePicker ? 'native-mobile-picker' : '',
+    nativeApp && showMembers && visibleSection === 'tea' ? 'native-mobile-members-open' : '',
+  ].filter(Boolean).join(' ')
   const privateUnreadCount = privateInbox.conversations.reduce((total, conversation) => total + conversation.unreadCount, 0)
   const privateInboxViewProps = {
     conversations: privateInbox.conversations,
@@ -272,7 +374,7 @@ function AppContent() {
   const content = visibleSection === 'welcome' || visibleSection === 'auth'
       ? <AuthScreen initialMode="login" onAuthenticated={() => setSection('inbox')} />
       : (
-        <div className={`app-shell ${showMembers && visibleSection === 'tea' ? 'members-open' : ''}`} data-theme={theme}>
+        <div className={appShellClasses} data-theme={theme}>
           <Sidebar
             active={visibleSection === 'tea' ? 'inbox' : visibleSection}
             theme={theme}
@@ -315,7 +417,7 @@ function AppContent() {
                 onCommunitySettingsChanged={communitySettings.refresh}
               />
             : visibleSection === 'profile'
-            ? <ProfileView key={`${profile?.id ?? ''}:${profile?.username ?? ''}`} theme={theme} username={profile?.username ?? ''} communityName={communitySettings.title} avatarUrl={profile?.avatarUrl ?? null} avatarPath={profile?.avatar_url ?? null} userId={profile?.id} notificationsEnabled={notificationsEnabled} settingsError={settingsError} profileError={profileError} profileEnabled={Boolean(session)} isAdministrator={isAdministrator} onUsernameChanged={refreshProfile} onAvatarChanged={refreshProfile} onToggleTheme={toggleTheme} onNotificationsChanged={changeNotifications} onSignOut={handleSignOut} onAccountDeleted={handleAccountDeleted} />
+            ? <ProfileView key={`${profile?.id ?? ''}:${profile?.username ?? ''}`} theme={theme} username={profile?.username ?? ''} communityName={communitySettings.title} avatarUrl={profile?.avatarUrl ?? null} avatarPath={profile?.avatar_url ?? null} userId={profile?.id} notificationsEnabled={notificationsEnabled} nativeApp={nativeApp} notificationPermission={notificationPermission} settingsError={settingsError} profileError={profileError} profileEnabled={Boolean(session)} isAdministrator={isAdministrator} onUsernameChanged={refreshProfile} onAvatarChanged={refreshProfile} onToggleTheme={toggleTheme} onNotificationsChanged={changeNotifications} onSignOut={handleSignOut} onAccountDeleted={handleAccountDeleted} />
             : visibleSection === 'inbox' && !privateChatEnabled && startingConversation
             ? <PrivateInboxView {...privateInboxViewProps} mode="picker" onCancelPicker={() => setStartingConversation(false)} />
             : visibleSection === 'inbox' && !privateChatEnabled
@@ -409,6 +511,7 @@ function AppContent() {
                 onMarkMentionsRead={() => visibleSection === 'tea'
                   ? generalChat.markMentionsRead()
                   : privateChat.markMentionsRead()}
+                nativeMobileExperience={nativeApp}
               />}
           {visibleSection === 'tea' && showMembers && <MemberPanel
             communityName={communitySettings.title}

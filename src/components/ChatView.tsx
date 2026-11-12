@@ -87,6 +87,7 @@ type ChatViewProps = {
   mentions?: MentionNotification[]
   onMarkMentionsRead?: () => Promise<void>
   theme?: 'dark' | 'light'
+  nativeMobileExperience?: boolean
 }
 
 function formatDuration(seconds: number) {
@@ -553,6 +554,7 @@ export function ChatView({
   mentions = [],
   onMarkMentionsRead,
   theme = 'dark',
+  nativeMobileExperience = false,
 }: ChatViewProps) {
   const [draft, setDraft] = useState('')
   const [menuFor, setMenuFor] = useState<string | null>(null)
@@ -592,7 +594,13 @@ export function ChatView({
   const recordingFrameRef = useRef<number | null>(null)
   const discardRecordingRef = useRef(false)
   const longPressTimerRef = useRef<number | null>(null)
-  const touchStartRef = useRef<{ x: number; y: number; message: DemoMessage; messageIds: string[] } | null>(null)
+  const touchStartRef = useRef<{
+    x: number
+    y: number
+    message: DemoMessage
+    content: HTMLDivElement | null
+    replyTriggered: boolean
+  } | null>(null)
   const suppressClickAtRef = useRef(0)
   const isNearBottomRef = useRef(true)
   const replyHighlightTimerRef = useRef<number | null>(null)
@@ -600,6 +608,9 @@ export function ChatView({
   const replyJumpInProgressRef = useRef(false)
   const conversationKeyRef = useRef(`${kind}:${privateName}`)
   const endRef = useRef<HTMLDivElement>(null)
+  const [nativePhoneLayout, setNativePhoneLayout] = useState(
+    () => nativeMobileExperience && window.innerWidth <= 850,
+  )
   const isTea = kind === 'tea'
   const selectionMode = selectedMessageIds.length > 0
   const newestMessageId = messages[messages.length - 1]?.id
@@ -615,6 +626,15 @@ export function ChatView({
       .filter((member) => member.id !== currentUserId && member.username.toLowerCase().startsWith(mentionQuery.toLowerCase()))
       .slice(0, 6)
     : []
+
+  useEffect(() => {
+    const updateNativePhoneLayout = () => {
+      setNativePhoneLayout(nativeMobileExperience && window.innerWidth <= 850)
+    }
+    updateNativePhoneLayout()
+    window.addEventListener('resize', updateNativePhoneLayout)
+    return () => window.removeEventListener('resize', updateNativePhoneLayout)
+  }, [nativeMobileExperience])
   const unreadMentions = mentions.filter((mention) => !mention.readAt).length
   const memberUsernames = new Set(mentionMembers.map((member) => member.username.toLowerCase()))
   const messagesRef = useRef(messages)
@@ -885,7 +905,18 @@ export function ChatView({
     const target = event.target
     if (target instanceof Element && target.closest('button, input, audio, video, a')) return
     const touch = event.touches[0]
-    touchStartRef.current = { x: touch.clientX, y: touch.clientY, message, messageIds }
+    const previous = touchStartRef.current
+    if (previous?.content) {
+      previous.content.classList.remove('reply-swiping')
+      previous.content.style.removeProperty('transform')
+    }
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      message,
+      content: event.currentTarget.querySelector<HTMLDivElement>('.message-content'),
+      replyTriggered: false,
+    }
     if (longPressTimerRef.current !== null) window.clearTimeout(longPressTimerRef.current)
     longPressTimerRef.current = window.setTimeout(() => {
       setSelectedMessageIds(messageIds)
@@ -905,12 +936,21 @@ export function ChatView({
       longPressTimerRef.current = null
     }
     if (Math.abs(deltaY) > 20 && Math.abs(deltaY) > Math.abs(deltaX)) {
+      if (start.content) {
+        start.content.classList.remove('reply-swiping')
+        start.content.style.removeProperty('transform')
+      }
       touchStartRef.current = null
       return
     }
+    const swipeDirectionMatches = start.message.mine ? deltaX < 0 : deltaX > 0
+    if (nativePhoneLayout && swipeDirectionMatches && Math.abs(deltaX) > 10 && Math.abs(deltaX) > Math.abs(deltaY) * 1.1) {
+      start.content?.classList.add('reply-swiping')
+      start.content?.style.setProperty('transform', `translateX(${Math.max(-92, Math.min(92, deltaX))}px)`)
+    }
     const replySwipe = start.message.mine ? deltaX < -72 : deltaX > 72
-    if (replySwipe && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
-      touchStartRef.current = null
+    if (replySwipe && !start.replyTriggered && Math.abs(deltaX) > Math.abs(deltaY) * 1.4) {
+      start.replyTriggered = true
       setReplyingTo(start.message)
       setEditingMessage(null)
       suppressClickAtRef.current = Date.now()
@@ -920,6 +960,11 @@ export function ChatView({
   function onMessageTouchEnd() {
     if (longPressTimerRef.current !== null) window.clearTimeout(longPressTimerRef.current)
     longPressTimerRef.current = null
+    const start = touchStartRef.current
+    if (start?.content) {
+      start.content.classList.remove('reply-swiping')
+      start.content.style.removeProperty('transform')
+    }
     touchStartRef.current = null
   }
 
@@ -1108,6 +1153,12 @@ export function ChatView({
       <header className="chat-header">
         {!isTea && <button className="icon-button mobile-back" onClick={onBack} type="button" aria-label="Back"><ArrowLeft size={19} /></button>}
         {isTea && onOpenChatList && <button className="icon-button mobile-chat-list" onClick={onOpenChatList} type="button" aria-label="Open chat list"><MessageSquare size={18} /></button>}
+        {nativeMobileExperience && <button
+          className="icon-button native-mobile-back"
+          onClick={isTea ? onOpenChatList : onBack}
+          type="button"
+          aria-label="Back to chats"
+        ><ArrowLeft size={19} /></button>}
         <button className="chat-heading" onClick={isTea ? onOpenMembers : undefined} type="button">
           <span className={`room-avatar ${isTea ? 'room-avatar-tea' : 'avatar-coral'}`}>
             {isTea ? <img src={communityAvatarUrl} alt="" /> : privateName === 'Private Inbox' ? 'PI' : privateName.slice(0, 2).toUpperCase()}
@@ -1578,7 +1629,7 @@ export function ChatView({
                 composerFormRef.current?.requestSubmit()
               }
             }}
-            placeholder={isTea ? 'C’mon, ngwino utubwire the other thing…' : `Message ${privateName}…`}
+            placeholder={nativePhoneLayout ? 'Mbabarira, umbwire…' : isTea ? 'C’mon, ngwino utubwire the other thing…' : `Message ${privateName}…`}
             maxLength={10000}
             rows={1}
           />

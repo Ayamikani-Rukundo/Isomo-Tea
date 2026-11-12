@@ -797,6 +797,7 @@ export function useConversationChat(
       : [],
     [contextKey, isCurrentOwner, mentionNotifications],
   )
+  const mentionsReady = isCurrentOwner && mentionNotifications?.owner === contextKey
 
   const persistMessage = useCallback(async (pending: PendingMessage) => {
     if (sendingIds.current.has(pending.id)) return
@@ -1538,6 +1539,7 @@ export function useConversationChat(
     votePoll,
     sendSticker,
     mentions: visibleMentions,
+    mentionsReady,
     markMentionsRead,
     loadEarlier,
     toggleReaction,

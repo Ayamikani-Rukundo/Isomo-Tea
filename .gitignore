@@ -33,3 +33,6 @@ android/**/build/
 android/app/google-services.json
 *.jks
 *.keystore
+/New folder/built/
+/New folder/*.apk
+/New folder/*.idsig
