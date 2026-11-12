@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { CircleUserRound, LogOut, MessageCircle, Moon, ShieldCheck, Sun } from 'lucide-react'
+import { CircleUserRound, LogOut, MessageCircle, Moon, ShieldCheck, Sun, WifiOff } from 'lucide-react'
 import type { AppSection } from '../types'
 import { Brand } from './Brand'
 
@@ -10,6 +10,7 @@ type SidebarProps = {
   avatarUrl?: string | null
   isAdministrator: boolean
   collapsed?: boolean
+  isOnline: boolean
   messageUnreadCount?: number
   onNavigate: (section: AppSection) => void
   onToggleTheme: () => void
@@ -23,6 +24,7 @@ export function Sidebar({
   avatarUrl,
   isAdministrator,
   collapsed = false,
+  isOnline,
   messageUnreadCount = 0,
   onNavigate,
   onToggleTheme,
@@ -74,6 +76,10 @@ export function Sidebar({
             </button>
           ))}
         </nav>
+        {!isOnline && <div className="sidebar-offline-status" role="status" title="Connect to the internet to send messages">
+          <WifiOff size={15} />
+          <span>You’re offline. Connect to the internet to send messages.</span>
+        </div>}
       </div>
 
       <div className="sidebar-bottom">

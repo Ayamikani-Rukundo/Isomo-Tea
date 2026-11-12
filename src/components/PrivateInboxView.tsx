@@ -13,7 +13,6 @@ type PrivateInboxViewProps = {
   loadingMembers: boolean
   loadingMoreMembers: boolean
   hasMoreMembers: boolean
-  connectionStatus: 'connecting' | 'connected' | 'disconnected'
   error: string
   deltaUnreadCount: number
   communityName: string
@@ -48,7 +47,6 @@ export function PrivateInboxView({
   loadingMembers,
   loadingMoreMembers,
   hasMoreMembers,
-  connectionStatus,
   error,
   deltaUnreadCount,
   communityName,
@@ -92,9 +90,6 @@ export function PrivateInboxView({
         <span className="private-inbox-icon"><Inbox size={20} /></span>
       </header>
       <div className="private-inbox-toolbar">
-        <span className={`private-inbox-status ${connectionStatus}`} role="status">
-          <i /> {connectionStatus === 'connected' ? 'LIVE' : connectionStatus === 'disconnected' ? 'UPDATES PAUSED' : 'CONNECTING'}
-        </span>
         {!showMemberPicker
           ? <button className="primary-button" onClick={() => setStarting(true)} type="button"><MessageCircle size={15} /> New conversation</button>
           : <button className="private-inbox-back" onClick={() => {

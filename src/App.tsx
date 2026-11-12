@@ -36,6 +36,7 @@ function AppContent() {
   const nativeApp = Capacitor.isNativePlatform()
   const [section, setSection] = useState<AppSection>('welcome')
   const [theme, setTheme] = useState<'dark' | 'light'>(readTheme)
+  const [isOnline, setIsOnline] = useState(() => navigator.onLine)
   const [showMembers, setShowMembers] = useState(false)
   const [privateName, setPrivateName] = useState('Private Inbox')
   const [privatePeerId, setPrivatePeerId] = useState<string | null>(null)
@@ -79,6 +80,17 @@ function AppContent() {
     || (latestGeneralMessage?.media
       ? `${latestGeneralMessage.media.kind === 'image' ? 'Photo' : latestGeneralMessage.media.kind === 'video' ? 'Video' : 'Audio'}${latestGeneralMessage.media.viewOnce ? ' · View once' : ''}`
       : latestGeneralMessage?.poll ? 'Poll' : latestGeneralMessage?.sticker ? 'Sticker' : null)
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true)
+    const handleOffline = () => setIsOnline(false)
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
+  }, [])
 
   useEffect(() => {
     if (!nativeApp) return undefined
@@ -337,12 +349,11 @@ function AppContent() {
     loadingMembers: Boolean(session && community.loading),
     loadingMoreMembers: community.loadingMore,
     hasMoreMembers: Boolean(session && community.hasMore),
-    connectionStatus: privateInbox.connectionStatus,
-    error: privateInbox.error || community.error,
+    error: isOnline ? privateInbox.error || community.error : '',
     deltaUnreadCount,
     communityName: communitySettings.title,
     communityAvatarUrl: communitySettings.avatarUrl,
-    deltaUnreadError,
+    deltaUnreadError: isOnline ? deltaUnreadError : '',
     deltaLatestMessage: deltaLatestPreview,
     deltaLatestAt: latestGeneralMessage?.createdAt ?? null,
     onOpenDeltaTea: () => navigate('tea'),
@@ -383,6 +394,7 @@ function AppContent() {
             isAdministrator={isAdministrator}
             collapsed={showMembers && visibleSection === 'tea'}
             messageUnreadCount={deltaUnreadCount + privateUnreadCount}
+            isOnline={isOnline}
             onNavigate={navigate}
             onToggleTheme={toggleTheme}
             onSignOut={handleSignOut}
@@ -391,7 +403,7 @@ function AppContent() {
           {(visibleSection === 'tea' || visibleSection === 'inbox') && <ChatListPane
             conversations={privateInbox.conversations}
             loading={privateInbox.loading}
-            error={privateInbox.error}
+            error={isOnline ? privateInbox.error : ''}
             activeKind={visibleSection === 'tea' ? 'tea' : privateChatEnabled ? 'inbox' : 'none'}
             activeConversationId={privateChat.conversationId ?? privateConversationId}
             deltaUnreadCount={deltaUnreadCount}
@@ -451,7 +463,6 @@ function AppContent() {
                 communityName={communitySettings.title}
                 communityAvatarUrl={communitySettings.avatarUrl}
                 liveMessages={Boolean(session && (visibleSection === 'tea' || visibleSection === 'inbox'))}
-                connectionStatus={visibleSection === 'tea' ? generalChat.connectionStatus : privateChat.connectionStatus}
                 loadingMessages={visibleSection === 'tea'
                   ? generalChat.loading
                   : visibleSection === 'inbox' && session
@@ -473,7 +484,7 @@ function AppContent() {
                 onDeleteMessageForEveryone={(messageId) => visibleSection === 'tea'
                   ? generalChat.deleteMessageForEveryone(messageId)
                   : privateChat.deleteMessageForEveryone(messageId)}
-                chatError={visibleSection === 'tea' && session
+                chatError={!isOnline ? '' : visibleSection === 'tea' && session
                   ? [generalChat.error, communitySettings.error].filter(Boolean).join(' ')
                   : visibleSection === 'inbox' && session
                     ? privateChatEnabled ? privateChat.error : 'Choose a member or an existing conversation from your Private Inbox.'

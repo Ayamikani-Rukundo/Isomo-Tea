@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent, type TouchEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type FormEvent, type SetStateAction, type TouchEvent } from 'react'
 import {
   ArrowDown, ArrowLeft, BarChart3, Bell, Check, ChevronDown, Circle, Eye, MessageSquare,
   ImagePlus, Laugh, MessageCircle, Mic, Paperclip, Pause, Pencil, Play, Plus, Search, Send,
@@ -17,6 +17,15 @@ import {
 } from '../lib/usernames'
 
 const quickReactions = ['👍', '❤️', '😂', '😮', '😢', '🙏']
+
+function readChatDraft(key: string) {
+  try {
+    return localStorage.getItem(key) ?? ''
+  } catch (error) {
+    console.error('Could not restore the conversation draft.', error)
+    return ''
+  }
+}
 
 type DisplayMessage = {
   message: DemoMessage
@@ -84,7 +93,6 @@ type ChatViewProps = {
   communityName?: string
   communityAvatarUrl?: string
   liveMessages?: boolean
-  connectionStatus?: 'idle' | 'connecting' | 'connected' | 'disconnected'
   loadingMessages?: boolean
   canSend?: boolean
   onToggleReaction?: (messageId: string, emoji: string) => void
@@ -551,7 +559,6 @@ export function ChatView({
   communityName = 'Delta Tea',
   communityAvatarUrl = '/delta-tea-avatar.png',
   liveMessages = false,
-  connectionStatus = 'idle',
   loadingMessages = false,
   canSend = true,
   onToggleReaction,
@@ -576,7 +583,25 @@ export function ChatView({
   theme = 'dark',
   nativeMobileExperience = false,
 }: ChatViewProps) {
-  const [draft, setDraft] = useState('')
+  const draftStorageKey = `isomo-chat-draft:${currentUserId ?? 'anonymous'}:${kind}:${kind === 'tea' ? 'general' : privateName}`
+  const [storedDraft, setStoredDraft] = useState(() => ({
+    key: draftStorageKey,
+    value: readChatDraft(draftStorageKey),
+  }))
+  const draft = storedDraft.key === draftStorageKey ? storedDraft.value : readChatDraft(draftStorageKey)
+  const setDraft = useCallback((next: SetStateAction<string>) => {
+    setStoredDraft((current) => {
+      const currentValue = current.key === draftStorageKey ? current.value : readChatDraft(draftStorageKey)
+      const value = typeof next === 'function' ? next(currentValue) : next
+      try {
+        if (value) localStorage.setItem(draftStorageKey, value)
+        else localStorage.removeItem(draftStorageKey)
+      } catch (error) {
+        console.error('Could not save the conversation draft.', error)
+      }
+      return { key: draftStorageKey, value }
+    })
+  }, [draftStorageKey])
   const [menuFor, setMenuFor] = useState<string | null>(null)
   const [menuOpensDown, setMenuOpensDown] = useState(false)
   const [selectedMessageIds, setSelectedMessageIds] = useState<string[]>([])
@@ -635,10 +660,6 @@ export function ChatView({
   const selectionMode = selectedMessageIds.length > 0
   const newestMessageId = messages[messages.length - 1]?.id
   const todayLabel = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase()
-  const liveStatusClass = !liveMessages
-    ? 'preview'
-    : !online || connectionStatus === 'disconnected' ? 'offline' : ''
-  const updatesPaused = liveMessages && connectionStatus === 'disconnected'
   const mentionMatch = draft.match(usernameMentionQueryPattern)
   const mentionQuery = mentionMatch?.[1] ?? mentionMatch?.[2] ?? ''
   const mentionSuggestions = mentionMatch
@@ -1141,10 +1162,7 @@ export function ChatView({
 
   async function submitMessage(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
-    if (!online) {
-      setNotice('You are offline. Your draft was kept; send when reconnected.')
-      return
-    }
+    if (!online) return
     if (attachments.length) {
       submitAttachment()
       return
@@ -1191,13 +1209,6 @@ export function ChatView({
           {isTea && <ChevronDown size={16} className="heading-chevron" />}
         </button>
         <span className="header-spacer" />
-        <span className={`live-pill ${liveStatusClass}`}><i /> {isTea
-          ? liveMessages
-            ? !online ? 'OFFLINE' : connectionStatus === 'connected' ? 'LIVE' : connectionStatus === 'disconnected' ? 'NO LIVE' : 'SYNCING'
-            : 'PREVIEW'
-          : liveMessages
-            ? !online ? 'OFFLINE' : connectionStatus === 'connected' ? 'LIVE' : connectionStatus === 'disconnected' ? 'NO LIVE' : 'PRIVATE'
-            : 'PREVIEW'}</span>
         <button
           className="icon-button mention-bell"
           onClick={() => setShowMentionNotifications((current) => !current)}
@@ -1513,9 +1524,6 @@ export function ChatView({
             setSelectedMessageIds([])
           }} type="button"><Laugh size={15} /> React</button>}
           {liveMessages && <button onClick={() => requestDeleteMessages(selectedMessageIds, everyoneCanDeleteSelection)} type="button"><Trash2 size={15} /> Delete</button>}
-        </div>}
-        {(!online || updatesPaused) && <div className="offline-indicator" role="status">
-          {!online ? 'Offline · drafts are kept on this screen' : 'Live updates paused · send failures can be retried'}
         </div>}
         {showEmojiPicker && <div className="emoji-picker">
           <EmojiPicker

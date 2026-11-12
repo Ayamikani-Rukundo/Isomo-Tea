@@ -443,7 +443,6 @@ export function useConversationChat(
         void markConversationRead(roomId).catch((markerError) => {
           if (!active) return
           console.error('Could not update the private conversation read marker.', markerError)
-          setError('The conversation was received, but its read status could not be updated.')
         })
       }
       try {
@@ -571,7 +570,6 @@ export function useConversationChat(
             if (!active) return
             console.error('The previous Realtime channel could not be removed.', removalError)
             setConnectionStatus('disconnected')
-            setError('A previous live connection could not be closed. Reload the app before sending.')
             return
           }
           if (channelRemovalRef.current === previousRemoval) channelRemovalRef.current = null
@@ -605,7 +603,6 @@ export function useConversationChat(
             void refreshReactions(roomId).catch((reactionError) => {
               if (!active) return
               console.error('Could not refresh message reactions.', reactionError)
-              setError('Recent reactions could not be synchronized.')
             })
           })
           .on('postgres_changes', {
@@ -617,7 +614,6 @@ export function useConversationChat(
             void reloadLatest(roomId).catch((pollError) => {
               if (!active) return
               console.error('Could not refresh poll results.', pollError)
-              setError('Poll results could not be synchronized.')
             })
           })
           .on('postgres_changes', {
@@ -629,7 +625,6 @@ export function useConversationChat(
             void refreshRecipientReadMarker(roomId).catch((markerError) => {
               if (!active) return
               console.error('Could not refresh the private conversation read marker.', markerError)
-              setError('The latest private conversation read status is unavailable.')
             })
           })
           .on('postgres_changes', {
@@ -641,7 +636,6 @@ export function useConversationChat(
             void refreshMentionNotifications().catch((mentionError) => {
               if (!active) return
               console.error('Could not refresh mention notifications.', mentionError)
-              setError('Mention notifications could not be synchronized.')
             })
           })
           .subscribe((status) => {
@@ -651,30 +645,23 @@ export function useConversationChat(
               void refreshMentionNotifications().catch((mentionError) => {
                 if (!active) return
                 console.error('Could not load mention notifications.', mentionError)
-                setError('Mention notifications could not be loaded.')
               })
               if (kind === 'private') {
                 void refreshRecipientReadMarker(roomId).catch((markerError) => {
                   if (!active) return
                   console.error('Could not synchronize the private conversation read marker.', markerError)
-                  setError('The latest private conversation read status is unavailable.')
                 })
               }
-              setError((current) => current === 'Live updates are unavailable. You can still try sending a message.'
-                ? ''
-                : current)
               if (needsCatchup) {
                 needsCatchup = false
                 void reloadLatest(roomId).catch((syncError) => {
                   if (!active) return
                   console.error('Could not synchronize messages after reconnecting.', syncError)
-                  setError('Live updates reconnected, but recent messages could not be synchronized.')
                 })
               }
             } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
               needsCatchup = true
               setConnectionStatus('disconnected')
-              setError('Live updates are unavailable. You can still try sending a message.')
             }
           })
 
@@ -1127,15 +1114,12 @@ export function useConversationChat(
         await refreshLatestRef.current?.(roomId)
       } catch (syncError) {
         console.error('Poll was created, but the latest conversation could not be refreshed.', syncError)
-        setError('Poll created. Conversation updates are still synchronizing.')
       }
       return true
     } catch (pollError) {
       console.error('Could not create a conversation poll.', pollError)
-      if (activeUserId.current === userId && activeConversationId.current === roomId) {
-        setError(saved
-          ? 'Poll created, but conversation updates are still synchronizing.'
-          : `Poll could not be created: ${errorText(pollError)}`)
+      if (!saved && activeUserId.current === userId && activeConversationId.current === roomId) {
+        setError(`Poll could not be created: ${errorText(pollError)}`)
       }
       return saved
     }
@@ -1200,15 +1184,12 @@ export function useConversationChat(
         await refreshLatestRef.current?.(roomId)
       } catch (syncError) {
         console.error('Sticker was sent, but the latest conversation could not be refreshed.', syncError)
-        setError('Sticker sent. Conversation updates are still synchronizing.')
       }
       return true
     } catch (stickerError) {
       console.error('Could not send a sticker.', stickerError)
-      if (activeUserId.current === userId && activeConversationId.current === roomId) {
-        setError(saved
-          ? 'Sticker sent, but conversation updates are still synchronizing.'
-          : `Sticker could not be sent: ${errorText(stickerError)}`)
+      if (!saved && activeUserId.current === userId && activeConversationId.current === roomId) {
+        setError(`Sticker could not be sent: ${errorText(stickerError)}`)
       }
       return saved
     }
