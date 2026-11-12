@@ -1,0 +1,829 @@
+# ISOMO TEA — MASTER DEVELOPMENT PROMPT
+## Build from scratch | Web application | Mobile experience | Android APK
+
+You are an expert full-stack software engineer, software architect, UI/UX designer, database engineer, and Android developer.
+
+Your task is to build **Isomo Tea (IsomoTea)** from scratch.
+
+This is a complete anonymous messaging platform for approximately 80 Isomo Academy scholars in Rwanda.
+
+You are starting with an EMPTY PROJECT FOLDER. There is no existing application to modify, no existing codebase to preserve, and no existing application architecture to assume.
+
+You must create the entire project, including its configuration, source files, components, database migrations, documentation, and Android configuration.
+
+The most important development requirement is that I must be able to run the application locally using:
+
+`npm run dev`
+
+I must be able to see the application in my browser immediately, including its mobile-responsive version, while development continues.
+
+Do not wait until the entire application is complete before making it runnable.
+
+---
+
+# 1. DEVELOPMENT APPROACH — VERY IMPORTANT
+
+Before implementing the full application, establish a working development environment.
+
+### Step 1: Initialize the project
+
+Create a complete project from scratch.
+
+Recommended stack:
+
+- React
+- TypeScript
+- Vite
+- Tailwind CSS
+- Supabase
+- Capacitor
+- Lucide icons
+- Framer Motion or another lightweight animation library where appropriate
+
+Use npm as the package manager.
+
+Create all necessary configuration files, including:
+
+- package.json
+- index.html
+- vite.config.ts
+- tsconfig.json
+- tsconfig.app.json where appropriate
+- postcss configuration if needed
+- Tailwind configuration if needed
+- ESLint configuration
+- .gitignore
+- .env.example
+- README.md
+
+Use compatible, stable dependency versions. Avoid unnecessary dependencies.
+
+### Step 2: Make the application runnable immediately
+
+Configure package.json so that:
+
+`npm run dev`
+
+starts the Vite development server.
+
+Use a development configuration that makes the application accessible through the local network when needed.
+
+For example, configure the Vite server to listen on `0.0.0.0`, while keeping the normal local development URL.
+
+The primary local URL should be:
+
+`http://localhost:5173`
+
+Also configure useful scripts:
+
+- `npm run dev` — start development server.
+- `npm run build` — generate production build.
+- `npm run preview` — preview production build.
+- `npm run lint` — check code quality.
+- `npm run typecheck` — check TypeScript errors.
+
+Verify that these commands work.
+
+### Step 3: Show me the application early
+
+Before implementing all the backend functionality, create an initial, polished, working interface.
+
+I want to see the actual application in my browser as soon as possible.
+
+The initial version should already contain:
+
+- Isomo Tea branding.
+- Landing page.
+- Login interface.
+- Registration interface.
+- General Tea interface.
+- Private inbox interface.
+- Member list.
+- Profile interface.
+- Light and dark themes.
+- Responsive mobile navigation.
+
+You may initially use clearly separated temporary mock data to demonstrate the interface, but do not confuse mock functionality with completed backend functionality.
+
+The application must remain runnable throughout development.
+
+### Step 4: Continue implementing the complete product
+
+After the initial interface is running, implement the real backend, authentication, database, messaging, media, administration, and Android functionality in logical phases.
+
+Do not destroy working features while implementing new ones.
+
+After each major phase:
+
+1. Run TypeScript checks.
+2. Run linting.
+3. Run the production build.
+4. Fix errors.
+5. Confirm that `npm run dev` still works.
+
+Never leave the project in a broken state just because you are moving to another feature.
+
+---
+
+# 2. HOW I WILL VIEW THE APPLICATION
+
+This is a mandatory requirement.
+
+I want to see both desktop and mobile versions while you develop.
+
+### Desktop preview
+
+I should be able to open:
+
+`http://localhost:5173`
+
+and see the live application.
+
+### Mobile preview in Chrome
+
+The application must be fully responsive.
+
+Make sure it works with Chrome's device emulation.
+
+I should be able to:
+
+1. Open the application in Chrome.
+2. Press F12.
+3. Enable the device toolbar.
+4. Select a phone such as Pixel or another Android device.
+5. See the mobile version of Isomo Tea.
+
+The mobile version must not simply look like a compressed desktop application.
+
+It must have appropriate mobile navigation, chat layouts, input positioning, side panels, menus, and touch interactions.
+
+### Real Android phone preview
+
+Configure Vite to support local network access.
+
+Provide clear instructions in README.md for accessing the development application from an actual Android phone connected to the same Wi-Fi network.
+
+For example:
+
+`npm run dev -- --host 0.0.0.0`
+
+Explain how to identify the computer's local IP address and access the application using:
+
+`http://YOUR_LOCAL_IP:5173`
+
+Document possible firewall requirements.
+
+Do not assume that localhost on the computer automatically works on the phone. Explain the network distinction.
+
+### Android APK
+
+Later, use Capacitor to generate the actual Android project and APK.
+
+Do not confuse the browser mobile preview with the actual APK.
+
+Both must be supported.
+
+---
+
+# 3. PRODUCT VISION
+
+Isomo Tea is an anonymous messaging platform exclusively for the Isomo Academy community.
+
+The purpose is to create a comfortable, playful environment where scholars can communicate, joke, discuss, gossip, share ideas, and express themselves without exposing their real-world identities to other members.
+
+The platform has three central experiences:
+
+1. General Tea — the central community conversation.
+2. Private Inbox — anonymous one-to-one conversations.
+3. Admin Control — membership, content and application management.
+
+The product must feel modern, distinctive, fast, and enjoyable.
+
+It should not look like a generic messaging template.
+
+---
+
+# 4. TECHNOLOGY ARCHITECTURE
+
+Use:
+
+- React + TypeScript + Vite for the frontend.
+- Tailwind CSS for styling.
+- Supabase PostgreSQL for the database.
+- Supabase Authentication for authentication.
+- Supabase Realtime for messaging.
+- Supabase Storage for media.
+- Supabase Edge Functions for secure backend operations.
+- Capacitor for Android.
+- IndexedDB for appropriate local caching.
+- Service Worker for offline web support.
+
+Use one shared application codebase for the website and Android application.
+
+Both must connect to the same backend.
+
+A message sent through the website must appear on Android, and a message sent through Android must appear on the website.
+
+Design the backend to support approximately 80 initial members and future growth.
+
+---
+
+# 5. AUTHENTICATION AND ACCOUNTS
+
+Ordinary scholars should register using:
+
+- Anonymous username.
+- Password.
+- Isomo access code.
+
+They should not need to provide their real names, email addresses, or phone numbers.
+
+### Username system
+
+- One account per scholar.
+- One anonymous username per account.
+- Usernames must be unique.
+- Username comparisons must be case-insensitive.
+- Users can change their username later.
+- Claimed usernames disappear from suggestions.
+- Users can select from suggested usernames or create their own.
+- Use creative, playful, unusual username suggestions.
+- Never use actual scholar identities in the suggestions.
+
+### Isomo access code
+
+The developer should be able to configure and change the access code.
+
+The code must be validated securely on the backend.
+
+Do not expose it in frontend source code.
+
+Scholars should enter the code directly when registering. Do not implement an administrator approval-request system.
+
+### Authentication security
+
+Use Supabase Authentication appropriately.
+
+Never store plaintext passwords.
+
+Implement a secure username-to-authentication-account lookup without exposing other users' private authentication details.
+
+Maintain sessions across browser and Android application restarts.
+
+---
+
+# 6. GENERAL TEA — MAIN CHAT
+
+Build a fully functional real-time group conversation.
+
+Features:
+
+- Text messaging.
+- Emojis.
+- Stickers.
+- Image attachments.
+- Voice notes.
+- View-once videos.
+- Polls.
+- Message replies.
+- Mentions and tagging.
+- Message reactions.
+- Message timestamps.
+- Message deletion.
+- Persistent history.
+- Unread message indicators.
+
+Messages should appear immediately without refreshing.
+
+Use optimistic UI updates and proper delivery states.
+
+Implement pagination rather than loading the entire conversation history at once.
+
+### Message actions
+
+Provide:
+
+- Reply.
+- Reply Inbox.
+- Delete for me.
+- Delete for everyone, where permitted.
+- Copy.
+- Cancel.
+
+Deleting for me must not delete the original message for everyone.
+
+Deleting for everyone must update the conversation for all participants.
+
+### Polls
+
+Implement real polls with questions, multiple options, voting, and live results.
+
+---
+
+# 7. PRIVATE INBOX
+
+Implement anonymous one-to-one conversations.
+
+There must be two ways to initiate private messaging.
+
+### Method 1: Reply Inbox
+
+A scholar selects a message in General Tea and chooses Reply Inbox.
+
+This opens an existing private conversation or creates a new one with the message sender.
+
+### Method 2: Members list
+
+When a scholar clicks the General Tea header, open a group-information panel.
+
+Display:
+
+- Community information.
+- List of members.
+- Anonymous usernames.
+- Profile pictures or avatars.
+- Administrator indicators where appropriate.
+
+Selecting a member should provide a Message option.
+
+Both methods must lead to the same private conversation.
+
+Private messaging must support:
+
+- Text.
+- Emojis.
+- Images.
+- Voice notes.
+- Video where supported.
+- Replies.
+- Reactions.
+- Message deletion.
+- View-once media.
+- Persistent conversation history.
+- Realtime updates.
+
+Only the participants should be able to access their private conversations, subject to properly authorized administrative operations.
+
+---
+
+# 8. MEDIA AND VIEW-ONCE FUNCTIONALITY
+
+Implement:
+
+- View-once images.
+- Listen-once audio.
+- View-once videos.
+
+Each recipient should only be able to access the media once through the application.
+
+### General-chat videos
+
+General-chat videos are intended for all eligible members.
+
+When a video is sent:
+
+1. Upload the actual video to Supabase Storage.
+2. Store its metadata in PostgreSQL.
+3. Record all eligible recipients.
+4. Track individual viewing status.
+5. Allow each eligible member one viewing opportunity.
+6. When everyone has viewed it, permanently delete the storage object and associated database records.
+
+If some recipients never view the video, automatically expire and clean it up after a configurable period.
+
+Use secure backend cleanup functionality.
+
+Do not store actual media files inside PostgreSQL.
+
+Respect Supabase storage, bandwidth and upload constraints.
+
+Do not claim to prevent external screen recording or screenshots.
+
+---
+
+# 9. USER PROFILES
+
+Allow scholars to:
+
+- Change usernames.
+- Upload profile pictures.
+- Select avatars.
+- Change passwords.
+- Change themes.
+- Manage notifications.
+- Log out.
+
+Username changes must be announced in General Tea.
+
+Example:
+
+"Someone just changed their identity. The tea continues. 👀"
+
+---
+
+# 10. ADMINISTRATOR DASHBOARD
+
+Create a separate administrator system.
+
+Administrators authenticate using email and password.
+
+Only authorized administrators should be able to create additional administrators.
+
+The administrator dashboard must provide:
+
+- List of registered users.
+- Account information.
+- Username management.
+- Account deletion with confirmation.
+- Message deletion.
+- Conversation history cleanup.
+- Date-range deletion.
+- Administrator management.
+- Storage management.
+
+### Anonymous administrator participation
+
+Administrators must be able to participate in General Tea like ordinary members.
+
+Other scholars can see an administrator indicator on the anonymous profile.
+
+They must not see the administrator's real identity, email, or credentials.
+
+### Message deletion
+
+Administrators can delete any existing message for everyone.
+
+### History cleanup
+
+Allow administrators to choose:
+
+- Start date and time.
+- End date and time.
+- Conversation scope.
+- Confirmation before deletion.
+
+Handle associated media cleanup safely.
+
+Do not delete media still needed by other valid messages.
+
+All administrative operations must be authorized server-side.
+
+---
+
+# 11. DESIGN AND USER EXPERIENCE
+
+Design a distinctive, premium Gen Z messaging experience.
+
+### Branding
+
+Application name: Isomo Tea.
+
+Use the supplied Isomo green reference as an accent.
+
+Create an original logo suitable for:
+
+- Website.
+- Browser favicon.
+- Android launcher icon.
+- Splash screen.
+
+Avoid generic AI-generated branding.
+
+### Dark mode
+
+Use sophisticated dark surfaces, excellent readability, beautiful message bubbles, subtle borders, and attractive chat wallpaper.
+
+### Light mode
+
+Use a clean, premium light theme.
+
+Both themes must be properly designed.
+
+### Animations
+
+Use smooth, lightweight animations.
+
+Include:
+
+- Message entrance animations.
+- Hover reactions.
+- Interactive colors.
+- Menu transitions.
+- Sidebar transitions.
+- Button feedback.
+- Loading animations.
+- Smooth navigation.
+
+Animations must never interfere with sending messages or navigating.
+
+### Responsive design
+
+Design separate desktop and mobile interaction patterns.
+
+On desktop:
+
+- Appropriate sidebar navigation.
+- Main chat area.
+- Side information panels.
+
+On mobile:
+
+- Dedicated navigation.
+- Full-screen conversation experience.
+- Touch-friendly controls.
+- Appropriate bottom navigation where useful.
+- Keyboard-aware message input.
+- Responsive member lists and menus.
+
+Support different screen widths and orientations.
+
+---
+
+# 12. PERFORMANCE
+
+Performance is one of the most important product requirements.
+
+The application must feel extremely responsive.
+
+Prioritize:
+
+- Fast initial loading.
+- Fast navigation.
+- Efficient React rendering.
+- Efficient database queries.
+- Optimized assets.
+- Lazy loading.
+- Message pagination.
+- Proper realtime subscriptions.
+- Smooth scrolling.
+- Optimistic updates.
+- Efficient media uploads.
+- Minimal unnecessary network requests.
+- Proper memory management.
+
+Avoid unnecessary dependencies and excessive animations.
+
+Do not load everything at startup.
+
+Use code splitting and lazy loading where appropriate.
+
+Measure performance and fix bottlenecks.
+
+Do not sacrifice application speed for decorative effects.
+
+---
+
+# 13. OFFLINE SUPPORT
+
+The application should open even without internet.
+
+Implement:
+
+- Cached application shell.
+- Previously cached conversations where appropriate.
+- Offline indicators.
+- Pending message handling.
+- Automatic synchronization after reconnection.
+
+Never silently lose unsent messages.
+
+Never falsely indicate that an offline message has been delivered.
+
+Do not persistently cache view-once media.
+
+---
+
+# 14. DATABASE AND SECURITY
+
+Design a proper relational PostgreSQL schema.
+
+Consider tables such as:
+
+- profiles
+- administrators
+- access_codes
+- conversations
+- conversation_members
+- messages
+- message_reactions
+- polls
+- poll_options
+- poll_votes
+- media
+- media_views
+- message_reads
+- notifications
+- user_settings
+
+Implement appropriate:
+
+- Foreign keys.
+- Constraints.
+- Indexes.
+- Unique username rules.
+- Timestamps.
+- Row Level Security.
+- Database migrations.
+
+Use secure backend functions for privileged actions.
+
+Keep administrator credentials and access codes out of frontend code.
+
+Create version-controlled SQL migrations.
+
+Create `.env.example`.
+
+Do not invent Supabase credentials.
+
+If credentials are unavailable, implement the application structure and explain what I need to configure.
+
+---
+
+# 15. IMPLEMENTATION PHASES
+
+Build the application progressively.
+
+**PHASE 1 — RUNNABLE FOUNDATION**
+
+- Initialize the empty project.
+- Install dependencies.
+- Configure Vite and npm scripts.
+- Establish the design system.
+- Build landing page.
+- Build login and registration interfaces.
+- Build initial General Tea interface.
+- Build initial private inbox.
+- Build responsive mobile layouts.
+- Implement dark and light modes.
+- Start the development server successfully.
+
+At the end of this phase, I must be able to run `npm run dev` and explore the initial application.
+
+Do not proceed without ensuring the initial application builds successfully.
+
+**PHASE 2 — AUTHENTICATION AND DATABASE**
+
+- Configure Supabase.
+- Create database migrations.
+- Implement registration.
+- Implement login.
+- Implement usernames.
+- Implement access code validation.
+- Implement profiles.
+- Implement security policies.
+
+**PHASE 3 — GENERAL TEA**
+
+- Real-time messaging.
+- Message actions.
+- Replies.
+- Reactions.
+- Polls.
+- Mentions.
+- Message history.
+
+**PHASE 4 — PRIVATE INBOX**
+
+- Reply Inbox.
+- Members list.
+- Private conversation creation.
+- Private messaging.
+- Conversation persistence.
+
+**PHASE 5 — MEDIA**
+
+- Image uploads.
+- Voice notes.
+- Stickers.
+- View-once images.
+- Listen-once audio.
+- View-once videos.
+- Automatic cleanup.
+
+**PHASE 6 — ADMINISTRATION**
+
+- Administrator login.
+- Dashboard.
+- Member management.
+- Message deletion.
+- History cleanup.
+- Administrator participation.
+
+**PHASE 7 — ANDROID AND OFFLINE**
+
+- Capacitor setup.
+- Android application identity.
+- Launcher icon.
+- Splash screen.
+- Native permissions.
+- Mobile optimization.
+- Offline support.
+- APK generation.
+
+**PHASE 8 — TESTING AND OPTIMIZATION**
+
+- Test all major functionality.
+- Fix bugs.
+- Test security.
+- Test mobile responsiveness.
+- Verify database permissions.
+- Verify storage cleanup.
+- Verify realtime messaging.
+- Optimize performance.
+- Verify production builds.
+
+---
+
+# 16. DEVELOPMENT DOCUMENTATION
+
+Create the following documentation:
+
+- `README.md`
+- `IMPLEMENTATION_STATUS.md`
+- `DEVELOPMENT_GUIDE.md`
+- `DATABASE_SCHEMA.md`
+- `ARCHITECTURE.md`
+
+The README must explain:
+
+1. How to install dependencies.
+2. How to configure environment variables.
+3. How to start the application using `npm run dev`.
+4. How to open localhost.
+5. How to view the mobile layout using Chrome DevTools.
+6. How to access the application from a phone on the same Wi-Fi network.
+7. How to connect Supabase.
+8. How to build the production version.
+9. How to build the Android APK.
+
+Keep implementation status updated.
+
+---
+
+# 17. COMPLETION REQUIREMENTS
+
+The application is not complete just because it looks attractive.
+
+Verify that:
+
+- Registration works.
+- Login works.
+- Username uniqueness works.
+- General Tea works.
+- Realtime messaging works.
+- Web and Android synchronize.
+- Private messaging works.
+- Reply Inbox works.
+- Members list works.
+- Media uploads work.
+- View-once deletion works.
+- Administrator dashboard works.
+- Administrator permissions are secure.
+- History cleanup works.
+- Dark and light themes work.
+- Mobile layouts work.
+- Offline startup works.
+- Android APK builds successfully.
+- No major broken navigation or nonfunctional buttons remain.
+
+Track each feature as Not Started, In Progress, Implemented, Tested, or Verified.
+
+---
+
+# 18. FINAL INSTRUCTIONS TO COPILOT
+
+You are starting from an empty folder.
+
+Do not assume any source files already exist.
+
+Do not skip project initialization.
+
+Do not dump the entire application into one enormous file.
+
+Use a clean, modular folder structure.
+
+Do not build only a static mockup.
+
+Do not leave buttons that do nothing.
+
+Do not claim backend features work before they are connected and tested.
+
+Do not generate all phases in one uncontrolled operation.
+
+First make the project runnable, then implement the product incrementally.
+
+**CRITICAL: I want to be able to open the local website using `npm run dev` from the very beginning of development. Keep the development server workflow simple and documented. I also want to see the mobile version using browser device emulation and, where possible, my actual Android phone.**
+
+If you need to make a technical decision, choose a maintainable, secure, performant solution.
+
+If a task is too large for one implementation session, continue in manageable steps, preserve the project's working state, and update the implementation checklist.
+
+At the end of each phase, tell me:
+
+- What you implemented.
+- What works.
+- What remains.
+- Whether `npm run dev` works.
+- Any configuration I need to perform.
+
+Your final objective is a complete, beautiful, extremely responsive Isomo Tea ecosystem: a web application and a real Android APK connected to one secure Supabase backend.

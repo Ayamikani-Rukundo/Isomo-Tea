@@ -1,0 +1,34 @@
+[api]
+enabled = true
+schemas = ["public", "graphql_public"]
+extra_search_path = ["public", "extensions"]
+
+[db]
+major_version = 15
+
+[functions.scholar-register]
+verify_jwt = false
+
+[functions.scholar-login]
+verify_jwt = false
+
+[functions.admin-login]
+verify_jwt = false
+
+[functions.admin-invite]
+verify_jwt = true
+
+[functions.admin-access-codes]
+verify_jwt = true
+
+[functions.admin-console]
+verify_jwt = true
+
+[functions.media-access]
+verify_jwt = true
+
+[functions.media-cleanup]
+verify_jwt = false
+
+[functions.account-delete]
+verify_jwt = true

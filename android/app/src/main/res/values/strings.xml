@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Isomo Tea</string>
+    <string name="title_activity_main">Isomo Tea</string>
+    <string name="package_name">com.isomotea.app</string>
+    <string name="custom_url_scheme">com.isomotea.app</string>
+</resources>
