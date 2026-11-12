@@ -1,5 +1,5 @@
 param(
-  [string]$Version = '1.1.0'
+  [string]$Version = '1.2.0'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -12,7 +12,7 @@ $javaHome = 'C:\Program Files\Eclipse Adoptium\jdk-21.0.13.9-hotspot'
 $androidHome = Join-Path $env:LOCALAPPDATA 'Android\Sdk'
 
 if ($Version -notmatch '^\d+\.\d+(\.\d+)?$') {
-  throw 'Version must use a numeric format such as 1.1.0.'
+  throw 'Version must use a numeric format such as 1.2.0.'
 }
 $gradleFile = Join-Path $androidDirectory 'app\build.gradle'
 $gradleContents = Get-Content -LiteralPath $gradleFile -Raw
