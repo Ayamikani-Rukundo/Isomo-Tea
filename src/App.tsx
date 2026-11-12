@@ -61,7 +61,7 @@ function AppContent() {
   const community = useCommunityMembers(profile?.id, Boolean(
     session && (section === 'tea' || section === 'inbox' || signedInLanding),
   ))
-  const latestGeneralMessage = generalChat.messages.at(-1)
+  const latestGeneralMessage = generalChat.messages[generalChat.messages.length - 1]
   const generalMessageRevision = generalChat.messages.map((message) => message.id).join('|')
   const deltaLatestPreview = latestGeneralMessage?.body
     || (latestGeneralMessage?.media

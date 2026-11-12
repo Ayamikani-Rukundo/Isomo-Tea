@@ -4,6 +4,9 @@ import { defineConfig } from 'vite'
 
 export default defineConfig({
   plugins: [react(), tailwindcss()],
+  build: {
+    target: 'chrome68',
+  },
   server: {
     host: '0.0.0.0',
     port: 5173,
