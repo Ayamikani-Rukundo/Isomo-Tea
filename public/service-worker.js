@@ -112,3 +112,48 @@ self.addEventListener('fetch', (event) => {
 self.addEventListener('message', (event) => {
   if (event.data?.type === 'SKIP_WAITING') event.waitUntil(self.skipWaiting())
 })
+
+self.addEventListener('push', (event) => {
+  let payload = {}
+  try {
+    payload = event.data?.json() ?? {}
+  } catch (error) {
+    console.error('A push notification payload could not be read.', error)
+  }
+  if (!payload || typeof payload !== 'object') payload = {}
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    if (windows.some((client) => client.visibilityState === 'visible')) return
+    const title = typeof payload.title === 'string' ? payload.title : 'Isomo Tea'
+    const body = typeof payload.body === 'string' ? payload.body : 'You have a new message.'
+    const url = typeof payload.url === 'string' && payload.url.startsWith('/')
+      ? payload.url
+      : '/?section=inbox'
+    await self.registration.showNotification(title, {
+      body,
+      icon: '/icons/isomo-tea-icon-192.png',
+      badge: '/icons/isomo-tea-icon-192.png',
+      tag: typeof payload.tag === 'string' ? payload.tag : 'isomo-message',
+      data: { url },
+    })
+  })())
+})
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close()
+  const url = event.notification.data?.url
+  if (typeof url !== 'string' || !url.startsWith('/')) return
+  event.waitUntil((async () => {
+    const target = new URL(url, self.location.origin).href
+    if (new URL(target).origin !== self.location.origin) return
+    const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+    for (const client of windows) {
+      if (client.url.startsWith(self.location.origin) && 'focus' in client) {
+        await client.focus()
+        if ('navigate' in client) await client.navigate(target)
+        return
+      }
+    }
+    await self.clients.openWindow(target)
+  })())
+})

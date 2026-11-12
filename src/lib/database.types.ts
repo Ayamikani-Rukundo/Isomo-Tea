@@ -127,9 +127,21 @@ export type Database = {
         Relationships: []
       }
       user_settings: {
-        Row: { user_id: string; theme: 'dark' | 'light'; notifications_enabled: boolean; created_at: string; updated_at: string }
-        Insert: { user_id: string; theme?: 'dark' | 'light'; notifications_enabled?: boolean }
-        Update: { theme?: 'dark' | 'light'; notifications_enabled?: boolean; updated_at?: string }
+        Row: { user_id: string; theme: 'dark' | 'light'; notifications_enabled: boolean; notifications_snoozed_until: string | null; created_at: string; updated_at: string }
+        Insert: { user_id: string; theme?: 'dark' | 'light'; notifications_enabled?: boolean; notifications_snoozed_until?: string | null }
+        Update: { theme?: 'dark' | 'light'; notifications_enabled?: boolean; notifications_snoozed_until?: string | null; updated_at?: string }
+        Relationships: []
+      }
+      web_push_subscriptions: {
+        Row: { id: string; user_id: string; endpoint: string; p256dh: string; auth: string; created_at: string; updated_at: string }
+        Insert: { id?: string; user_id: string; endpoint: string; p256dh: string; auth: string; created_at?: string; updated_at?: string }
+        Update: { endpoint?: string; p256dh?: string; auth?: string; updated_at?: string }
+        Relationships: []
+      }
+      native_push_tokens: {
+        Row: { id: string; user_id: string; token: string; platform: 'android' | 'ios'; created_at: string; updated_at: string }
+        Insert: { id?: string; user_id: string; token: string; platform: 'android' | 'ios'; created_at?: string; updated_at?: string }
+        Update: { token?: string; platform?: 'android' | 'ios'; updated_at?: string }
         Relationships: []
       }
     }

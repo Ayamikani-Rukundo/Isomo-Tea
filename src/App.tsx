@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
+import { Bell, X } from 'lucide-react'
 import { ChatView } from './components/ChatView'
 import { AuthScreen } from './components/AuthScreen'
 import { AdminDashboard } from './components/AdminDashboard'
@@ -20,10 +21,12 @@ import { useCommunitySettings } from './hooks/useCommunitySettings'
 import { loadUserSettings, saveUserSettings } from './lib/settings'
 import {
   checkNativeNotificationPermission,
+  listenForNativeNotificationActions,
   requestNativeNotificationPermission,
-  showNativeMentionNotification,
+  registerNativePush,
   type NativeNotificationPermission,
 } from './lib/nativeNotifications'
+import { browserNotificationPermission, browserPushConfigured, enableWebPush } from './lib/webPush'
 import { supabase } from './lib/supabase'
 import './App.css'
 
@@ -34,7 +37,9 @@ function readTheme(): 'dark' | 'light' {
 
 function AppContent() {
   const nativeApp = Capacitor.isNativePlatform()
-  const [section, setSection] = useState<AppSection>('welcome')
+  const [section, setSection] = useState<AppSection>(() => (
+    new URLSearchParams(window.location.search).get('section') === 'inbox' ? 'inbox' : 'welcome'
+  ))
   const [theme, setTheme] = useState<'dark' | 'light'>(readTheme)
   const [isOnline, setIsOnline] = useState(() => navigator.onLine)
   const [showMembers, setShowMembers] = useState(false)
@@ -43,14 +48,16 @@ function AppContent() {
   const [privateConversationId, setPrivateConversationId] = useState<string | null>(null)
   const [startingConversation, setStartingConversation] = useState(false)
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
+  const [notificationsSnoozedUntil, setNotificationsSnoozedUntil] = useState<string | null>(null)
+  const [settingsLoadedFor, setSettingsLoadedFor] = useState<string | null>(null)
+  const [notificationPromptDismissed, setNotificationPromptDismissed] = useState(false)
   const [notificationPermission, setNotificationPermission] = useState<NativeNotificationPermission>(
-    nativeApp ? 'prompt' : 'unavailable',
+    nativeApp ? 'prompt' : browserNotificationPermission(),
   )
   const [settingsError, setSettingsError] = useState('')
   const [deltaUnreadCount, setDeltaUnreadCount] = useState(0)
   const [deltaUnreadError, setDeltaUnreadError] = useState('')
   const [deltaReadMarker, setDeltaReadMarker] = useState<{ userId: string; readAt: string } | null>(null)
-  const mentionSnapshot = useRef<{ userId: string; ids: Set<string> } | null>(null)
   const { session, profile, isAdministrator, administratorError, loading, profileError, refreshProfile, clearSession } = useAuth()
   const userId = session?.user.id
   const communitySettings = useCommunitySettings(userId)
@@ -93,11 +100,12 @@ function AppContent() {
   }, [])
 
   useEffect(() => {
-    if (!nativeApp) return undefined
     let active = true
     const refreshPermission = async () => {
       try {
-        const permission = await checkNativeNotificationPermission()
+        const permission = nativeApp
+          ? await checkNativeNotificationPermission()
+          : browserNotificationPermission()
         if (active) setNotificationPermission(permission)
       } catch (error) {
         if (!active) return
@@ -119,34 +127,20 @@ function AppContent() {
   }, [nativeApp])
 
   useEffect(() => {
-    if (!userId) {
-      mentionSnapshot.current = null
-      return
+    if (!nativeApp) return undefined
+    let active = true
+    let removeListener: (() => Promise<void>) | undefined
+    void listenForNativeNotificationActions().then((cleanup) => {
+      if (active) removeListener = cleanup
+      else void cleanup()
+    }).catch((error: unknown) => {
+      console.error('Could not listen for Android notification taps.', error)
+    })
+    return () => {
+      active = false
+      if (removeListener) void removeListener()
     }
-    if (!generalChat.mentionsReady) return
-    const mentions = generalChat.mentions
-    const currentIds = new Set(mentions.map((mention) => `${mention.conversationId}:${mention.messageId}`))
-    const previous = mentionSnapshot.current
-    mentionSnapshot.current = { userId, ids: currentIds }
-    if (!previous || previous.userId !== userId) return
-    const newMentions = mentions.filter((mention) => (
-      !previous.ids.has(`${mention.conversationId}:${mention.messageId}`)
-      && !mention.readAt
-    ))
-    if (!nativeApp || !notificationsEnabled || notificationPermission !== 'granted' || document.visibilityState === 'visible') return
-    for (const mention of newMentions) {
-      void showNativeMentionNotification(mention).catch((error: unknown) => {
-        console.error('Could not show an Android mention notification.', error)
-      })
-    }
-  }, [
-    generalChat.mentions,
-    generalChat.mentionsReady,
-    nativeApp,
-    notificationPermission,
-    notificationsEnabled,
-    userId,
-  ])
+  }, [nativeApp])
 
   useEffect(() => {
     if (!session) return
@@ -156,14 +150,64 @@ function AppContent() {
       setTheme(settings.theme)
       localStorage.setItem('isomo-theme', settings.theme)
       setNotificationsEnabled(settings.notifications_enabled)
+      const activeSnooze = settings.notifications_snoozed_until
+        && new Date(settings.notifications_snoozed_until).getTime() > Date.now()
+        ? settings.notifications_snoozed_until
+        : null
+      setNotificationsSnoozedUntil(activeSnooze)
+      if (settings.notifications_snoozed_until && !activeSnooze) {
+        void saveUserSettings(session.user.id, { notifications_snoozed_until: null }).catch((error: unknown) => {
+          console.error('Could not clear the expired notification pause.', error)
+        })
+      }
       setSettingsError('')
     }).catch((error: unknown) => {
       if (!active) return
       console.error('Could not load account preferences.', error)
       setSettingsError('Account preferences could not be loaded. Changes may not match your other devices.')
+    }).finally(() => {
+      if (active) setSettingsLoadedFor(session.user.id)
     })
     return () => { active = false }
   }, [session])
+
+  useEffect(() => {
+    if (!nativeApp || !userId || settingsLoadedFor !== userId || !notificationsEnabled || notificationPermission !== 'granted') return undefined
+    let active = true
+    let removeListeners: (() => Promise<void>) | undefined
+    void registerNativePush(userId, (message) => {
+      if (active) setSettingsError(message)
+    }).then((cleanup) => {
+      if (active) removeListeners = cleanup
+      else void cleanup()
+    }).catch((error: unknown) => {
+      if (!active) return
+      console.error('Could not register Android push notifications.', error)
+      setSettingsError('Push notifications could not be started on this Android device.')
+    })
+    return () => {
+      active = false
+      if (removeListeners) void removeListeners()
+    }
+  }, [nativeApp, notificationPermission, notificationsEnabled, settingsLoadedFor, userId])
+
+  useEffect(() => {
+    if (!userId || !notificationsSnoozedUntil) return undefined
+    const delay = Math.max(0, new Date(notificationsSnoozedUntil).getTime() - Date.now())
+    const timeout = window.setTimeout(() => {
+      setNotificationsSnoozedUntil(null)
+      void saveUserSettings(userId, { notifications_snoozed_until: null }).catch((error: unknown) => {
+        console.error('Could not resume message notifications after the pause ended.', error)
+      })
+    }, delay)
+    return () => window.clearTimeout(timeout)
+  }, [notificationsSnoozedUntil, userId])
+
+  useEffect(() => {
+    const handleOpenInbox = () => setSection('inbox')
+    window.addEventListener('isomo:open-inbox', handleOpenInbox)
+    return () => window.removeEventListener('isomo:open-inbox', handleOpenInbox)
+  }, [])
 
   function markDeltaRead() {
     if (!userId) return
@@ -236,19 +280,25 @@ function AppContent() {
   async function changeNotifications(enabled: boolean) {
     if (!session) return
     const previous = notificationsEnabled
-    if (enabled && nativeApp) {
+    if (enabled) {
       try {
-        const permission = await requestNativeNotificationPermission()
-        setNotificationPermission(permission)
-        if (permission !== 'granted') {
-          setSettingsError(permission === 'denied'
-            ? 'Notifications are blocked. Allow Isomo Tea notifications in Android settings, then try again.'
-            : 'Android did not grant notification permission. Please try again.')
-          return
+        if (nativeApp) {
+          const permission = await requestNativeNotificationPermission()
+          setNotificationPermission(permission)
+          if (permission !== 'granted') {
+            setSettingsError(permission === 'denied'
+              ? 'Notifications are blocked. Allow Isomo Tea notifications in Android settings, then try again.'
+              : 'Android did not grant notification permission. Please try again.')
+            return
+          }
+        } else {
+          await enableWebPush(session.user.id)
+          setNotificationPermission('granted')
         }
       } catch (error) {
-        console.error('Could not request Android notification permission.', error)
-        setSettingsError('Android notification permission could not be requested. Please try again.')
+        if (!nativeApp) setNotificationPermission(browserNotificationPermission())
+        console.error('Could not enable message notifications.', error)
+        setSettingsError(error instanceof Error ? error.message : 'Notifications could not be enabled.')
         return
       }
     }
@@ -263,6 +313,20 @@ function AppContent() {
     }
   }
 
+  async function changeNotificationSnooze(hours: number | null) {
+    if (!session) return
+    const next = hours === null ? null : new Date(Date.now() + hours * 60 * 60 * 1000).toISOString()
+    const previous = notificationsSnoozedUntil
+    setNotificationsSnoozedUntil(next)
+    try {
+      await saveUserSettings(session.user.id, { notifications_snoozed_until: next })
+      setSettingsError('')
+    } catch (error) {
+      console.error('Could not update the notification pause.', error)
+      setNotificationsSnoozedUntil(previous)
+      setSettingsError('The notification pause could not be saved. Please try again.')
+    }
+  }
   function openPrivateChat(username: string, userId?: string) {
     if (userId && userId === profile?.id) return
     if (section === 'tea') markDeltaRead()
@@ -288,6 +352,9 @@ function AppContent() {
     await signOut()
     clearSession()
     setNotificationsEnabled(true)
+    setNotificationsSnoozedUntil(null)
+    setSettingsLoadedFor(null)
+    setNotificationPromptDismissed(false)
     setSettingsError('')
     setPrivatePeerId(null)
     setPrivateConversationId(null)
@@ -306,6 +373,9 @@ function AppContent() {
     }
     clearSession()
     setNotificationsEnabled(true)
+    setNotificationsSnoozedUntil(null)
+    setSettingsLoadedFor(null)
+    setNotificationPromptDismissed(false)
     setSettingsError('')
     setPrivatePeerId(null)
     setPrivateConversationId(null)
@@ -399,6 +469,21 @@ function AppContent() {
             onToggleTheme={toggleTheme}
             onSignOut={handleSignOut}
           />
+          {visibleSection === 'inbox'
+            && session
+            && settingsLoadedFor === session.user.id
+            && !notificationPromptDismissed
+            && (nativeApp ? notificationPermission !== 'unavailable' : browserPushConfigured())
+            && (!notificationsEnabled || notificationPermission !== 'granted')
+            && <div className="notification-prompt-banner" role="status">
+                <Bell size={18} />
+                <span><strong>Stay in the loop</strong><small>Get new-message alerts when Isomo Tea isn’t open.</small></span>
+                <button onClick={() => {
+                  if (notificationPermission === 'denied') navigate('profile')
+                  else void changeNotifications(true)
+                }} type="button">{notificationPermission === 'denied' ? 'Notification settings' : 'Enable alerts'}</button>
+                <button className="notification-prompt-dismiss" onClick={() => setNotificationPromptDismissed(true)} type="button" aria-label="Dismiss notification prompt"><X size={15} /></button>
+              </div>}
           {administratorError && <p className="admin-role-warning" role="alert">Administrator access could not be verified. Reload the app or sign in again to retry.</p>}
           {(visibleSection === 'tea' || visibleSection === 'inbox') && <ChatListPane
             conversations={privateInbox.conversations}
@@ -429,7 +514,7 @@ function AppContent() {
                 onCommunitySettingsChanged={communitySettings.refresh}
               />
             : visibleSection === 'profile'
-            ? <ProfileView key={`${profile?.id ?? ''}:${profile?.username ?? ''}`} theme={theme} username={profile?.username ?? ''} communityName={communitySettings.title} avatarUrl={profile?.avatarUrl ?? null} avatarPath={profile?.avatar_url ?? null} userId={profile?.id} notificationsEnabled={notificationsEnabled} nativeApp={nativeApp} notificationPermission={notificationPermission} settingsError={settingsError} profileError={profileError} profileEnabled={Boolean(session)} isAdministrator={isAdministrator} onUsernameChanged={refreshProfile} onAvatarChanged={refreshProfile} onToggleTheme={toggleTheme} onNotificationsChanged={changeNotifications} onSignOut={handleSignOut} onAccountDeleted={handleAccountDeleted} />
+            ? <ProfileView key={`${profile?.id ?? ''}:${profile?.username ?? ''}`} theme={theme} username={profile?.username ?? ''} communityName={communitySettings.title} avatarUrl={profile?.avatarUrl ?? null} avatarPath={profile?.avatar_url ?? null} userId={profile?.id} notificationsEnabled={notificationsEnabled} notificationsSnoozedUntil={notificationsSnoozedUntil} nativeApp={nativeApp} notificationPermission={notificationPermission} settingsError={settingsError} profileError={profileError} profileEnabled={Boolean(session)} isAdministrator={isAdministrator} onUsernameChanged={refreshProfile} onAvatarChanged={refreshProfile} onToggleTheme={toggleTheme} onNotificationsChanged={changeNotifications} onNotificationSnoozeChanged={changeNotificationSnooze} onSignOut={handleSignOut} onAccountDeleted={handleAccountDeleted} />
             : visibleSection === 'inbox' && !privateChatEnabled && startingConversation
             ? <PrivateInboxView {...privateInboxViewProps} mode="picker" onCancelPicker={() => setStartingConversation(false)} />
             : visibleSection === 'inbox' && !privateChatEnabled

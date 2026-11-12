@@ -13,6 +13,7 @@ type ProfileViewProps = {
   avatarPath: string | null
   userId?: string
   notificationsEnabled: boolean
+  notificationsSnoozedUntil: string | null
   nativeApp: boolean
   notificationPermission: NativeNotificationPermission
   settingsError: string
@@ -23,6 +24,7 @@ type ProfileViewProps = {
   onAvatarChanged: () => Promise<void>
   onToggleTheme: () => void
   onNotificationsChanged: (enabled: boolean) => Promise<void>
+  onNotificationSnoozeChanged: (hours: number | null) => Promise<void>
   onSignOut: () => Promise<void>
   onAccountDeleted: () => Promise<void>
 }
@@ -37,6 +39,7 @@ export function ProfileView({
   avatarPath,
   userId,
   notificationsEnabled,
+  notificationsSnoozedUntil,
   nativeApp,
   notificationPermission,
   settingsError,
@@ -47,6 +50,7 @@ export function ProfileView({
   onAvatarChanged,
   onToggleTheme,
   onNotificationsChanged,
+  onNotificationSnoozeChanged,
   onSignOut,
   onAccountDeleted,
 }: ProfileViewProps) {
@@ -291,22 +295,47 @@ export function ProfileView({
         <button className="preference-row" onClick={onToggleTheme} type="button"><span className="preference-icon">{theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}</span><span><strong>Appearance</strong><small>{theme === 'dark' ? 'Dark mode' : 'Light mode'}</small></span><ChevronRight size={17} /></button>
         <button
           className="preference-row"
-          onClick={() => void onNotificationsChanged(!notificationsEnabled || (nativeApp && notificationPermission !== 'granted'))}
+          onClick={() => void onNotificationsChanged(!notificationsEnabled || notificationPermission !== 'granted')}
           type="button"
-          aria-pressed={notificationsEnabled && (!nativeApp || notificationPermission === 'granted')}
+          aria-pressed={notificationsEnabled && notificationPermission === 'granted'}
         >
           <span className="preference-icon"><Bell size={17} /></span>
-          <span><strong>Activity notifications</strong><small>{nativeApp
+          <span><strong>Message notifications</strong><small>{nativeApp
             ? notificationPermission === 'denied'
               ? 'Allow notifications in Android settings'
               : notificationPermission === 'unavailable'
                 ? 'Android notifications are unavailable'
                 : notificationPermission !== 'granted'
-                  ? 'Tap to allow Android mention alerts'
-                  : notificationsEnabled ? 'Mention alerts are on' : 'Mention alerts are off'
-            : notificationsEnabled ? 'Mention notifications are on' : 'Mention notifications are off'}</small></span>
-          <span className={`settings-toggle ${notificationsEnabled && (!nativeApp || notificationPermission === 'granted') ? 'enabled' : ''}`} aria-hidden="true"><i /></span>
+                  ? 'Tap to allow Android message alerts'
+                  : notificationsEnabled ? 'Message alerts are on' : 'Message alerts are off'
+            : notificationPermission === 'denied'
+              ? 'Allow notifications in browser settings'
+              : notificationPermission === 'unavailable'
+                ? 'This browser does not support push notifications'
+                : notificationsEnabled ? 'Message alerts are on for this account' : 'Tap to enable message alerts'}</small></span>
+          <span className={`settings-toggle ${notificationsEnabled && notificationPermission === 'granted' ? 'enabled' : ''}`} aria-hidden="true"><i /></span>
         </button>
+        <label className="notification-snooze">
+          <span><strong>Pause notifications</strong><small>Pause alerts on all your devices, then resume automatically.</small></span>
+          <select
+            value={notificationsSnoozedUntil ? 'paused' : 'active'}
+            onChange={(event) => {
+              const hours = event.target.value === '1' ? 1
+                : event.target.value === '8' ? 8
+                  : event.target.value === '24' ? 24 : null
+              void onNotificationSnoozeChanged(hours)
+            }}
+            disabled={!notificationsEnabled}
+          >
+            {notificationsSnoozedUntil && <option value="paused">
+              Paused until {new Date(notificationsSnoozedUntil).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}
+            </option>}
+            <option value="active">Alerts on</option>
+            <option value="1">Pause for 1 hour</option>
+            <option value="8">Pause for 8 hours</option>
+            <option value="24">Pause for 24 hours</option>
+          </select>
+        </label>
         <div className="preference-row password-preference">
           <span className="preference-icon"><KeyRound size={17} /></span>
           <span><strong>Password</strong><small>Update your sign-in password</small></span>

@@ -59,7 +59,7 @@ The root [`vercel.json`](./vercel.json) selects Vite, builds with `npm run build
 1. Push the project root to GitHub. `.env.local` is ignored by Git; do not add real credentials to the repository.
 2. In Vercel, select **Add New → Project**, import that GitHub repository, and leave **Root Directory** at the repository root.
 3. Check that the detected settings are **Vite**, `npm run build`, and `dist`. The checked-in `vercel.json` supplies these values and the SPA fallback.
-4. Before deploying, open **Environment Variables** and add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from Supabase. Never add a service-role key or any other privileged credential as a `VITE_` variable. Add `VITE_ANDROID_APK_URL` only after a signed release APK is published at a stable, public HTTPS download URL. `VITE_ANDROID_APK_VERSION` and `VITE_ANDROID_APK_SIZE` are optional button labels.
+4. Before deploying, open **Environment Variables** and add `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` from Supabase. Add `VITE_WEB_PUSH_PUBLIC_KEY` after generating the VAPID key pair described below. Never add a service-role key or any other privileged credential as a `VITE_` variable. Add `VITE_ANDROID_APK_URL` only after a signed release APK is published at a stable, public HTTPS download URL. `VITE_ANDROID_APK_VERSION` and `VITE_ANDROID_APK_SIZE` are optional button labels.
 5. Click **Deploy**. Vercel builds the project and provides an HTTPS URL. Open it, test sign-in, and reload the page. Pushes to the connected production branch trigger a new deployment; pull requests can use their Vercel preview URLs.
 6. If the project uses password reset or other redirect-based auth flows, add the production and preview domains to the Supabase Auth URL configuration.
 7. Vercel hosts the browser/PWA frontend only; Supabase remains a separate backend. Apply pending Supabase migrations and deploy their Edge Functions separately. Emoji usernames require migration `202611120005_emoji_usernames.sql` after `202611120004_phrase_usernames.sql`, plus updated `scholar-register` and `scholar-login` functions.
@@ -134,6 +134,8 @@ Phrase-style usernames such as `No way out` require the additive migration `2026
 
 Emoji usernames require the additive migration `202611120005_emoji_usernames.sql` after `202611120004`, followed by redeploying the updated `scholar-register` and `scholar-login` Edge Functions. It updates the database username constraint, availability and update RPCs, and server-side mention parser. The web client also highlights mentions with emoji names. The migration and functions have not been applied or deployed to the hosted project.
 
+Background message alerts and cross-device snoozing require `202611120006_message_push_notifications.sql`, a deployed `send-message-push` Edge Function, and a Supabase Database Webhook on `public.messages` INSERT. Apply it after the earlier account migrations. Browser/PWA delivery uses VAPID Web Push; native Android delivery uses Firebase Cloud Messaging (FCM). Neither transport works until its secrets and provider configuration are installed. This workspace has not applied the migration or verified delivery against the hosted project.
+
 Chat author names now use stable account-derived colors, and message selection uses fixed gutter checkboxes so bubbles do not shift. On touch-sized screens the message-actions control sits outside the bubble instead of covering its text; desktop hover behavior is unchanged.
 
 Review and apply any remaining migrations only after checking the remote schema and in dependency order; do not rerun migration 001 or run `supabase db push` as part of this source change. New migrations and Edge Function changes have not been deployed or tested against the hosted project. The browser and Android builds share the same configured Supabase backend and do not provide an offline chat backend.
@@ -166,6 +168,33 @@ For the Phase 2 authentication functions, add this custom production secret:
 - `AUTH_RATE_LIMIT_PEPPER` — a random secret used to hash client network identifiers before rate-limit records are stored. Generate it locally and set it with the commands below. Never share or commit its value. Supabase supports this secret in the Dashboard under **Edge Functions → Secrets**, or via the CLI.
 
 In addition, configure `MEDIA_CLEANUP_SECRET` before deploying `media-cleanup`. Schedule a trusted caller to POST to `/functions/v1/media-cleanup` with the `x-media-cleanup-secret` header (for example, a secured external scheduler or owner-configured Supabase Cron/pg_net job). The application does not configure or invoke this schedule automatically.
+
+### Background message notifications
+
+The Profile preferences provide a message-alert toggle and 1-, 8-, and 24-hour snooze. The snooze is account-wide and expires automatically. Desktop and browser/PWA delivery use Web Push; native Android delivery uses FCM. Notifications are sent only to other conversation members, and delivery respects the account-wide enabled/snoozed setting. Foreground clients do not display redundant OS notifications.
+
+These are deployment steps, not completed hosted-project configuration:
+
+1. Review and apply `supabase/migrations/202611120006_message_push_notifications.sql` once, after migration 001. It adds snooze state plus owner-only web subscription and native token tables.
+2. Generate a VAPID key pair locally from the project root:
+
+   ```powershell
+   npx.cmd --yes web-push generate-vapid-keys
+   ```
+
+   Keep the private key secret. Set `WEB_PUSH_PUBLIC_KEY`, `WEB_PUSH_PRIVATE_KEY`, and `WEB_PUSH_SUBJECT` (for example, `mailto:your-support-address@example.com`) in **Supabase → Edge Functions → Secrets**. Add only the public key as `VITE_WEB_PUSH_PUBLIC_KEY` in Vercel. For local browser development, add that public key to the ignored `.env.local`.
+3. Generate a separate long random secret for the database webhook. Set it as `MESSAGE_PUSH_WEBHOOK_SECRET` in Supabase Edge Function secrets; do not put it in the frontend.
+4. Deploy the dispatcher from the repository root:
+
+   ```powershell
+   npx.cmd supabase functions deploy send-message-push --project-ref YOUR_PROJECT_REF
+   ```
+
+   In Supabase **Database → Webhooks**, create an HTTP `INSERT` webhook for `public.messages`, URL `https://YOUR_PROJECT_REF.supabase.co/functions/v1/send-message-push`, and custom header `x-isomo-push-secret` with the exact secret from step 3. The function intentionally has JWT verification disabled because Database Webhooks do not send a user JWT; the separate random header is required for authorization.
+5. To receive background notifications in the Android APK, create/register the Firebase Android app with package ID `com.isomotea.app`, enable Firebase Cloud Messaging, and place the downloaded `google-services.json` at `android/app/google-services.json` (this file is ignored by Git). Store the Firebase service-account JSON as the Supabase Edge Function secret `FIREBASE_SERVICE_ACCOUNT`. Never commit or expose this credential. Then sync/build a new signed APK; previously installed APKs cannot gain FCM support without an app update.
+6. Redeploy Vercel after setting `VITE_WEB_PUSH_PUBLIC_KEY`. Users then sign in and choose **Profile → Activity notifications** on each browser/device to grant permission and register that device. They can snooze or turn off alerts there.
+
+The migration, Edge Function, webhook, VAPID keys, Firebase project, and hosted delivery have not been independently applied or tested in this workspace. Test with two accounts, with the receiving app both backgrounded and closed, on each target platform before announcing the feature. Notification permission is controlled by the browser/operating system and can be revoked there.
 
 #### Existing Phase 2 deployment
 
@@ -238,9 +267,9 @@ The native Capacitor Android project is in `android/`, with app name, applicatio
 
 The Android asset sources are in `assets/`. After changing them, regenerate the native resources with `npm run android:assets`; sync the current web build with `npm run android:sync`. In Android Studio, open the project with `npm run android:open`. A debug APK can be built with `.\gradlew.bat assembleDebug` from the `android/` directory after configuring `JAVA_HOME` and `ANDROID_SDK_ROOT`; Gradle writes it to `android\app\build\outputs\apk\debug\app-debug.apk`. This debug APK is not a release build.
 
-To build and sign a release APK consistently into `New folder\built`, run `.\scripts\build-release.ps1 -Version 1.3.0` from the project root. The script syncs the latest web bundle, builds the unsigned release, signs it with `New folder\isomo-tea-release.jks`, verifies the signature, and writes `New folder\built\IsomoTea-1.3.0.apk`. It verifies that the output version matches `versionName` in `android\app\build.gradle`; this release uses `versionCode 4`, `versionName "1.3.0"`. Increment `versionCode` and update `versionName` before future releases. The keystore is ignored by Git, but keep a secure backup and never commit or share it.
+To build and sign the next release APK consistently into `New folder\built`, run `.\scripts\build-release.ps1 -Version 1.4.0` from the project root after completing the Firebase setup above. The script syncs the latest web bundle, builds the unsigned release, signs it with `New folder\isomo-tea-release.jks`, verifies the signature, and writes `New folder\built\IsomoTea-1.4.0.apk`. This source is set to `versionCode 5`, `versionName "1.4.0"`. The keystore and Firebase `google-services.json` are ignored by Git, but keep secure backups and never commit or share them.
 
-Android mention alerts request the device's notification permission from **Profile → Activity notifications** and use local notifications for new mentions received while the app's realtime connection is still active. This does not provide reliable push when the app is closed or disconnected; that requires Firebase/FCM setup and a deployed server-side notification sender.
+Android message alerts use Firebase Cloud Messaging, with permission requested from **Profile → Activity notifications**. Reliable background delivery requires the Firebase app configuration and deployed message-push backend described above.
 
 ### APK download button
 

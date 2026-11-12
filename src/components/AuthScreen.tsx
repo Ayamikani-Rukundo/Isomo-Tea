@@ -1,6 +1,6 @@
 import { Capacitor } from '@capacitor/core'
 import { useEffect, useState, type FormEvent } from 'react'
-import { ArrowDownToLine, ArrowRight, Eye, EyeOff, LockKeyhole, MessageCircle, MonitorDown, RefreshCw, Smartphone, UsersRound } from 'lucide-react'
+import { ArrowDownToLine, ArrowRight, Bell, Eye, EyeOff, LockKeyhole, MessageCircle, MonitorDown, RefreshCw, Smartphone, UsersRound } from 'lucide-react'
 import type { AuthMode } from '../types'
 import { Brand } from './Brand'
 import { useAuth } from '../context/useAuth'
@@ -156,6 +156,7 @@ export function AuthScreen({ initialMode, onAuthenticated }: AuthScreenProps) {
           <div className="auth-benefits" aria-label="Isomo Tea features">
             <span><LockKeyhole size={15} /> Private by alias</span>
             <span><MessageCircle size={15} /> Group and private chats</span>
+            <span><Bell size={15} /> Turn on message alerts after signing in</span>
             <span><UsersRound size={15} /> Made for Isomo</span>
           </div>
         </div>
