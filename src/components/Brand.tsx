@@ -13,12 +13,12 @@ export function Brand({ compact = false, onClick }: BrandProps) {
       {!compact && (
         <span className="brand-wordmark">
           <strong>isomo</strong>
-          <span>tea</span>
+          <span>support</span>
         </span>
       )}
     </>
   )
   return onClick
     ? <button className={className} onClick={onClick} type="button">{content}</button>
-    : <div className={className} aria-label="Isomo Tea">{content}</div>
+    : <div className={className} aria-label="Isomo Support">{content}</div>
 }

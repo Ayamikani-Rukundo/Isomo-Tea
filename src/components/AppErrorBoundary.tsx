@@ -11,14 +11,14 @@ export class AppErrorBoundary extends Component<AppErrorBoundaryProps, AppErrorB
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
-    console.error('Isomo Tea encountered a rendering error.', error, info.componentStack)
+    console.error('Isomo Support encountered a rendering error.', error, info.componentStack)
   }
 
   render() {
     if (this.state.error) {
       return (
         <main className="app-error-boundary" role="alert">
-          <strong>Isomo Tea hit an unexpected error.</strong>
+          <strong>Isomo Support hit an unexpected error.</strong>
           <p>Your account data remains on the server. Reload the app to try again.</p>
           <button onClick={() => window.location.reload()} type="button">Reload app</button>
         </main>

@@ -67,17 +67,17 @@ export function AuthScreen({ initialMode, onAuthenticated }: AuthScreenProps) {
       }
       setInstallStatus(choice.outcome === 'accepted'
         ? isWindowsDevice
-          ? 'Install accepted. If it does not open automatically, launch Isomo Tea from Start or your browser’s apps list, then pin it from its taskbar icon.'
-          : 'Install accepted. If it does not open automatically, launch Isomo Tea from your home screen or browser’s apps list.'
+          ? 'Install accepted. If it does not open automatically, launch Isomo Support from Start or your browser’s apps list, then pin it from its taskbar icon.'
+          : 'Install accepted. If it does not open automatically, launch Isomo Support from your home screen or browser’s apps list.'
         : 'Install cancelled. You can try again from your browser’s app menu.')
     } catch (installError) {
       console.error('PWA installation could not be started.', installError)
-      setInstallStatus('Installation could not be started. Use your browser’s app menu to install Isomo Tea.')
+      setInstallStatus('Installation could not be started. Use your browser’s app menu to install Isomo Support.')
     }
   }
 
   function reloadApp() {
-    if ((username || password || accessCode || adminEmail) && !window.confirm('Reload Isomo Tea? Unsaved sign-in details will be cleared.')) return
+    if ((username || password || accessCode || adminEmail) && !window.confirm('Reload Isomo Support? Unsaved sign-in details will be cleared.')) return
     window.location.reload()
   }
 
@@ -147,18 +147,19 @@ export function AuthScreen({ initialMode, onAuthenticated }: AuthScreenProps) {
       <div className="auth-art">
         <div className="auth-brand-row">
           <Brand />
-          {installed && !isNativeApp && <button className="auth-refresh-button" onClick={reloadApp} type="button" aria-label="Reload Isomo Tea" title="Reload Isomo Tea"><RefreshCw size={15} /></button>}
+          {installed && !isNativeApp && <button className="auth-refresh-button" onClick={reloadApp} type="button" aria-label="Reload Isomo Support" title="Reload Isomo Support"><RefreshCw size={15} /></button>}
         </div>
         <div className="auth-art-copy">
-          <span className="eyebrow">PRIVATE COMMUNITY · ISOMO ACADEMY</span>
-          <h1>Your people.<br /><em>Your space.</em></h1>
-          <p>A familiar, private place to catch up with the Isomo community.</p>
-          <div className="auth-benefits" aria-label="Isomo Tea features">
-            <span><LockKeyhole size={15} /> Private by alias</span>
-            <span><MessageCircle size={15} /> Group and private chats</span>
+          <span className="eyebrow">PEER SUPPORT · ISOMO ACADEMY</span>
+          <h1>You can share<br /><em>at your own pace.</em></h1>
+          <p>A welcoming place to talk about what you’re going through, listen, and support one another.</p>
+          <div className="auth-benefits" aria-label="Isomo Support features">
+            <span><LockKeyhole size={15} /> Join with an alias</span>
+            <span><MessageCircle size={15} /> Support Circle and one-to-one chats</span>
             <span><Bell size={15} /> Turn on message alerts after signing in</span>
             <span><UsersRound size={15} /> Made for Isomo</span>
           </div>
+          <p className="auth-support-note">Share only what feels right. This is peer support, not professional or emergency care. If someone is in immediate danger, contact local emergency services or a trusted person.</p>
         </div>
         {!isNativeApp && <div className="auth-art-footer">
           <div className="auth-actions">
@@ -167,7 +168,7 @@ export function AuthScreen({ initialMode, onAuthenticated }: AuthScreenProps) {
             </button>
             <div className="auth-downloads">
               {androidApkUrl
-                ? <a className="app-download-button" href={androidApkUrl} aria-label="Download the Isomo Tea Android APK">
+                ? <a className="app-download-button" href={androidApkUrl} aria-label="Download the Isomo Support Android APK">
                     <Smartphone size={17} />
                     <span><strong>Download APK</strong><small>{import.meta.env.VITE_ANDROID_APK_VERSION || 'Android app'}{import.meta.env.VITE_ANDROID_APK_SIZE ? ` · ${import.meta.env.VITE_ANDROID_APK_SIZE}` : ''}</small></span>
                     <ArrowDownToLine size={15} />
@@ -182,7 +183,7 @@ export function AuthScreen({ initialMode, onAuthenticated }: AuthScreenProps) {
             {showInstallHelp && !installPromptAvailable && !installed && <p className="auth-install-status" role="status">
               No install prompt is available. In Edge, use <strong>… → Apps → Install this site as an app</strong>; in Chrome, use <strong>⋮ → Install page as app</strong>. Windows users can pin the taskbar icon after installation; the browser and operating system control launch behavior and pinning.
             </p>}
-            {installed && <p className="auth-install-status">{isWindowsDevice ? 'Installed. On Windows, right-click its taskbar icon and choose “Pin to taskbar”.' : 'Isomo Tea is installed. Open it from your home screen or apps list.'}</p>}
+            {installed && <p className="auth-install-status">{isWindowsDevice ? 'Installed. On Windows, right-click its taskbar icon and choose “Pin to taskbar”.' : 'Isomo Support is installed. Open it from your home screen or apps list.'}</p>}
             {installStatus && <p className="auth-install-status" role="status">{installStatus}</p>}
           </div>
         </div>}
@@ -190,9 +191,9 @@ export function AuthScreen({ initialMode, onAuthenticated }: AuthScreenProps) {
       </div>
       <section className="auth-form-side">
         <div className="auth-form-box">
-          <span className="eyebrow">{mode === 'admin' ? 'ADMIN SIGN IN' : 'UWABABIRI GUSA'}</span>
+          <span className="eyebrow">{mode === 'admin' ? 'ADMIN SIGN IN' : 'ISOMO SUPPORT'}</span>
           <h2>{mode === 'login' ? 'Welcome back.' : mode === 'admin' ? 'Administrator sign in.' : 'Choose your alias.'}</h2>
-          <p className="auth-subtitle">{mode === 'login' ? 'Sign in with the username your community sees.' : mode === 'admin' ? 'Sign in with your administrator account.' : 'Choose a unique name members will see.'}</p>
+          <p className="auth-subtitle">{mode === 'login' ? 'Sign in to your support space.' : mode === 'admin' ? 'Sign in with your administrator account.' : 'Choose an alias the community can use to get to know you.'}</p>
           <div className="auth-tabs" role="tablist" aria-label="Account options">
             <button aria-selected={mode === 'login'} className={mode === 'login' ? 'active' : ''} onClick={() => changeMode('login')} role="tab" type="button">Sign in</button>
             <button aria-selected={mode === 'register'} className={mode === 'register' ? 'active' : ''} onClick={() => changeMode('register')} role="tab" type="button">Create account</button>
@@ -205,7 +206,7 @@ export function AuthScreen({ initialMode, onAuthenticated }: AuthScreenProps) {
             </>}
             {mode === 'admin'
               ? <label>Administrator email<div className="input-with-icon"><span>@</span><input required type="email" value={adminEmail} onChange={(event) => setAdminEmail(event.target.value)} autoComplete="username" placeholder="admin@isomo.rw" /></div></label>
-              : <label>Username<div className="input-with-icon"><span>@</span><input required minLength={3} maxLength={48} value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" placeholder="No way out 😎" aria-describedby={mode === 'register' ? 'username-status' : undefined} /></div>
+              : <label>Username<div className="input-with-icon"><span>@</span><input required minLength={3} maxLength={48} value={username} onChange={(event) => setUsername(event.target.value)} autoComplete="username" placeholder="Choose an alias" aria-describedby={mode === 'register' ? 'username-status' : undefined} /></div>
                 {mode === 'register' && <small id="username-status" className={`availability availability-${availability}`}>
                   {usernameAvailability === 'checking' ? 'Checking availability…' : usernameAvailability === 'available' ? 'This username is available.' : usernameAvailability === 'taken' ? 'That username is already taken.' : usernameAvailability === 'error' ? 'Availability check failed. The server will still verify on submit.' : 'Use 3–24 letters, numbers, periods, underscores, emoji, and single spaces.'}
                 </small>}
@@ -219,10 +220,10 @@ export function AuthScreen({ initialMode, onAuthenticated }: AuthScreenProps) {
             <button className="primary-button auth-submit" type="submit" disabled={busy || !configured}>
               {busy ? 'Please wait…' : mode === 'login' ? 'Sign in to your space' : mode === 'admin' ? 'Administrator sign in' : 'Create my anonymous account'} <ArrowRight size={17} />
             </button>
-            <p className="auth-privacy">{mode === 'admin' ? 'Administrator access is invite-only.' : 'Euwanaaa, this is the only place wamurasiramo.'}</p>
+            <p className="auth-privacy">{mode === 'admin' ? 'Administrator access is invite-only.' : 'You can share at your own pace. Listening is support, too.'}</p>
           </form>
           <button className="admin-login-link" onClick={() => changeMode(mode === 'admin' ? 'login' : 'admin')} type="button">{mode === 'admin' ? 'Scholar sign in' : 'Administrator sign in'}</button>
-          <p className="auth-privacy auth-back-link">Messages which are not tea are not allowed.</p>
+          <p className="auth-privacy auth-back-link">Your story matters. Share only what feels right.</p>
         </div>
       </section>
     </main>

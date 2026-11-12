@@ -8,7 +8,7 @@ Browser / Capacitor Android WebView
       ├── Sign-in-first scholar/admin authentication and registration
       ├── AuthProvider — Supabase session, role check, and profile
       ├── Profile — username/password, account settings, private avatar
-      ├── General Tea and Private Inbox — paginated text, replies, reactions,
+      ├── Support Circle and one-to-one conversations — paginated text, replies, reactions,
       │   edits/deletes, media, polls, mentions, stickers, and Realtime source paths
       ├── Admin dashboard — member/admin/access-code operations and audit UI
       ├── PWA service worker — shell/local static assets only; no API/chat media

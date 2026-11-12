@@ -20,7 +20,7 @@ type PrivateInboxViewProps = {
   deltaUnreadError: string
   deltaLatestMessage: string | null
   deltaLatestAt: string | null
-  onOpenDeltaTea: () => void
+  onOpenSupportCircle: () => void
   onOpenConversation: (conversation: PrivateConversationSummary) => void
   onStartConversation: (member: CommunityMember) => void
   onHideConversation: (conversationId: string) => Promise<boolean>
@@ -54,7 +54,7 @@ export function PrivateInboxView({
   deltaUnreadError,
   deltaLatestMessage,
   deltaLatestAt,
-  onOpenDeltaTea,
+  onOpenSupportCircle,
   onOpenConversation,
   onStartConversation,
   onHideConversation,
@@ -84,8 +84,8 @@ export function PrivateInboxView({
       <header className="private-inbox-header">
         <div>
           <p className="eyebrow">{mode === 'picker' ? 'NEW CONVERSATION' : 'YOUR CONVERSATIONS'}</p>
-          <h1>{mode === 'picker' ? 'Choose a member' : 'Messages'}</h1>
-          <p>{mode === 'picker' ? 'Select a community member to start a private chat.' : `Select ${communityName} or open a one-to-one conversation.`}</p>
+          <h1>{mode === 'picker' ? 'Choose a member' : 'Conversations'}</h1>
+          <p>{mode === 'picker' ? 'Choose someone you’d like to talk with one-to-one.' : `Open ${communityName} or reach out one-to-one.`}</p>
         </div>
         <span className="private-inbox-icon"><Inbox size={20} /></span>
       </header>
@@ -131,20 +131,20 @@ export function PrivateInboxView({
           </button>}
         </section>
       ) : (
-        <section className="private-conversation-list" aria-label="Chats">
+        <section className="private-conversation-list" aria-label="Conversations">
           <div className="private-conversation-row delta-tea-row">
             <img className="avatar delta-tea-avatar private-conversation-avatar" src={communityAvatarUrl} alt="" />
-            <button className="private-conversation-open" onClick={onOpenDeltaTea} type="button" aria-label={`Open ${communityName} community chat`}>
+            <button className="private-conversation-open" onClick={onOpenSupportCircle} type="button" aria-label={`Open ${communityName} support chat`}>
               <span className="private-conversation-topline"><strong>{communityName}</strong><time>{messageTime(deltaLatestAt)}</time></span>
-              <span className="private-conversation-preview">{deltaLatestMessage ?? 'Community chat'}</span>
+              <span className="private-conversation-preview">{deltaLatestMessage ?? 'A place to listen and support'}</span>
             </button>
             {deltaUnreadCount > 0 && <span className="private-unread-count" aria-label={`${deltaUnreadCount} unread ${communityName} messages`}>{deltaUnreadCount > 99 ? '99+' : deltaUnreadCount}</span>}
           </div>
           {loading && !conversations.length && <p className="private-inbox-empty">Loading your conversations…</p>}
           {!loading && !conversations.length && <div className="private-inbox-empty-card">
             <Users size={24} />
-            <strong>No private conversations yet</strong>
-            <span>Start a new conversation to message a community member.</span>
+            <strong>No one-to-one conversations yet</strong>
+            <span>Start a conversation whenever you’re ready to talk.</span>
           </div>}
           {conversations.map((conversation) => (
             <div className="private-conversation-row" key={conversation.conversationId}>

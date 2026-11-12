@@ -24,10 +24,10 @@ export function PwaUpdatePrompt() {
       installing.addEventListener('statechange', showWaitingWorker)
     }
     const handleUnhandledRejection = (event: PromiseRejectionEvent) => {
-      console.error('Isomo Tea encountered an unhandled asynchronous error.', event.reason)
+      console.error('Isomo Support encountered an unhandled asynchronous error.', event.reason)
     }
     const handleRuntimeError = (event: ErrorEvent) => {
-      console.error('Isomo Tea encountered a runtime error.', event.error ?? event.message)
+      console.error('Isomo Support encountered a runtime error.', event.error ?? event.message)
     }
 
     window.addEventListener('unhandledrejection', handleUnhandledRejection)
@@ -40,11 +40,11 @@ export function PwaUpdatePrompt() {
       registration.addEventListener('updatefound', handleUpdateFound)
       updateInterval = window.setInterval(() => {
         void registration?.update().catch((error: unknown) => {
-          console.error('Isomo Tea could not check for app updates.', error)
+          console.error('Isomo Support could not check for app updates.', error)
         })
       }, 60 * 60 * 1000)
     }).catch((error: unknown) => {
-      console.error('Isomo Tea offline support could not be enabled.', error)
+      console.error('Isomo Support offline support could not be enabled.', error)
     })
 
     return () => {
@@ -60,7 +60,7 @@ export function PwaUpdatePrompt() {
   if (!waitingWorker) return null
   return (
     <aside className="pwa-update-prompt" role="status">
-      <span>A new version of Isomo Tea is ready.</span>
+      <span>A new version of Isomo Support is ready.</span>
       <button onClick={() => {
         updateAccepted.current = true
         waitingWorker.postMessage({ type: 'SKIP_WAITING' })

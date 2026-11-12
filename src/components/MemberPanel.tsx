@@ -29,23 +29,23 @@ export function MemberPanel({
   return (
     <aside className="member-panel mobile-open">
       <div className="panel-title-row">
-        <div><p className="eyebrow">THE COMMUNITY</p><h2>About the room</h2></div>
+        <div><p className="eyebrow">SUPPORT CIRCLE</p><h2>About the circle</h2></div>
         <button className="panel-icon panel-close" onClick={onClose} type="button" aria-label="Close community panel">
           <X className="desktop-panel-close-icon" size={16} />
           <ArrowLeft className="mobile-panel-back-icon" size={18} />
         </button>
       </div>
       <div className="community-card">
-        <div className="community-cover"><span>ISOMO <i>✳</i> TEA</span></div>
+        <div className="community-cover"><span>ISOMO <i>✳</i> SUPPORT</span></div>
         <div className="community-card-body">
           <img className="community-card-avatar" src={communityAvatarUrl} alt="" />
           <strong>{communityName}</strong>
-          <p>Community conversation</p>
-          <div className="member-count"><span className="online-dot" /> {loading ? 'Loading members…' : `${members.length}${hasMore ? '+' : ''} curious minds`}</div>
+          <p>A space to listen and support</p>
+          <div className="member-count"><span className="online-dot" /> {loading ? 'Loading members…' : `${members.length}${hasMore ? '+' : ''} people in the circle`}</div>
         </div>
       </div>
       <div className="member-list-heading">
-        <h3>In the room <span>{members.length}{hasMore ? '+' : ''}</span></h3>
+        <h3>In the circle <span>{members.length}{hasMore ? '+' : ''}</span></h3>
         {!loading && <span className="online-count">Presence unavailable</span>}
       </div>
       <div className="member-list">
@@ -64,10 +64,10 @@ export function MemberPanel({
       </div>
       <div className="privacy-note">
         <ShieldCheck size={17} />
-        <span>If they discovered you,<br /><strong>change your username, sibyoo.</strong></span>
+        <span>Share at your pace.<br /><strong>Ask for support when you’re ready.</strong></span>
         <Check size={14} className="privacy-check" />
       </div>
-      <div className="panel-footer">Made for the Isomo community <span>✳</span></div>
+      <div className="panel-footer">Peer support for Isomo <span>✳</span></div>
     </aside>
   )
 }

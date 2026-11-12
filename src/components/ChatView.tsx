@@ -556,7 +556,7 @@ export function ChatView({
   onOpenChatList,
   onBack,
   privateName = 'moonlit.mango',
-  communityName = 'Delta Tea',
+  communityName = 'Support Circle',
   communityAvatarUrl = '/delta-tea-avatar.png',
   liveMessages = false,
   loadingMessages = false,
@@ -1661,7 +1661,7 @@ export function ChatView({
                 composerFormRef.current?.requestSubmit()
               }
             }}
-            placeholder={nativePhoneLayout ? 'Mbabarira, umbwire…' : isTea ? 'C’mon, ngwino utubwire the other thing…' : `Message ${privateName}…`}
+            placeholder={nativePhoneLayout ? 'Mbabarira, umbwire…' : isTea ? 'Share what feels right…' : `Message ${privateName}…`}
             maxLength={10000}
             rows={1}
           />
@@ -1686,7 +1686,7 @@ export function ChatView({
           }} type="button" aria-label="Create a poll" aria-expanded={showPollComposer}><BarChart3 size={18} /></button>
           <button className={`send-button ${(draft.trim() || attachments.length) && canSend && online ? 'ready' : ''}`} type="submit" aria-label={attachments.length ? 'Send media' : 'Send message'} disabled={(!draft.trim() && !attachments.length) || !canSend || !online}><Send size={17} /></button>
         </form>
-        <div className="composer-hint"><span><Sparkles size={11} /> If they discovered you, change your username, sibyoo.</span>        <span><span className="desktop-hint">{isTea ? 'Messages which are not tea are not allowed.' : 'Uwababiri gusa.'}</span><span className="mobile-hint">{liveMessages ? 'Sent to this conversation' : 'Preview only · local, not delivered'}</span> <span className="hint-heart">♥</span></span></div>
+        <div className="composer-hint"><span><Sparkles size={11} /> Your story matters. Share only what feels right.</span>        <span><span className="desktop-hint">{isTea ? 'Listen kindly. Support each other.' : 'One-to-one conversation.'}</span><span className="mobile-hint">{liveMessages ? 'Sent to this conversation' : 'Preview only · local, not delivered'}</span> <span className="hint-heart">♥</span></span></div>
       </div>
       {isTea && <button className="mobile-members" onClick={onOpenMembers} type="button"><Users size={16} /> Community</button>}
       {notice && <div className="chat-notice" role="status">{notice}</div>}

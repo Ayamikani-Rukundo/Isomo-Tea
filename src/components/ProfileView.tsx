@@ -280,12 +280,12 @@ export function ProfileView({
           </button>}
         </div>
         <div className="profile-identity-copy"><span className="eyebrow">YOUR COMMUNITY IDENTITY</span><h2>@{currentUsername || '...'}</h2><p>Your photo and alias are visible to signed-in community members.</p></div>
-        <span className="anonymous-badge"><Shield size={14} /> Anonymous</span>
+        <span className="anonymous-badge"><Shield size={14} /> Alias-based</span>
       </section>
       {error && <p className="profile-error" role="alert">{error}</p>}
       {notice && <p className="profile-notice" role="status">{notice}</p>}
       <form className="profile-card profile-settings" onSubmit={(event) => void save(event)}>
-        <div className="settings-title"><div><h2>Make it yours</h2><p>Your classmates only see the alias you choose.</p></div><Sparkles size={18} /></div>
+        <div className="settings-title"><div><h2>Make it yours</h2><p>Your alias is how other members will know you. Share personal details only if you choose.</p></div><Sparkles size={18} /></div>
         <label className="profile-label">Username<div className="username-input"><span>@</span><input value={username} onChange={(event) => { setUsername(event.target.value); setSaved(false); setError('') }} minLength={3} maxLength={48} /></div><small>Usernames must be unique. Emoji are welcome. Changing yours will be announced in {communityName}.</small></label>
         {username.trim().toLowerCase() !== currentUsername.toLowerCase() && <p className={`profile-availability availability-${usernameAvailability}`} role="status">{usernameAvailability === 'checking' ? 'Checking availability…' : usernameAvailability === 'available' ? 'This username is available.' : usernameAvailability === 'taken' ? 'That username is already taken.' : usernameAvailability === 'error' ? 'Availability check failed. The server will still verify on save.' : 'Use 3–24 letters, numbers, periods, underscores, emoji, and single spaces.'}</p>}
         <button className="primary-button save-profile" type="submit" disabled={busy}>{busy ? 'Saving…' : saved ? <><Check size={16} /> Username saved</> : <>Save changes <ChevronRight size={16} /> </>}</button>
@@ -395,7 +395,7 @@ export function ProfileView({
       {profileEnabled
         ? <button className="signout-button" onClick={() => void handleSignOut()} disabled={signingOut} type="button">{signingOut ? 'Signing out…' : 'Sign out'}</button>
         : null}
-      {profileEnabled && <p className="profile-footnote">Your account preferences are saved to your Isomo Tea account.</p>}
+      {profileEnabled && <p className="profile-footnote">Your account preferences are saved to your Isomo Support account.</p>}
     </main>
   )
 }

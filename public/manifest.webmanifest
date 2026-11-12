@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "Isomo Tea",
-  "short_name": "Isomo Tea",
-  "description": "A private conversation space for the Isomo Academy community.",
+  "name": "Isomo Support",
+  "short_name": "Isomo Support",
+  "description": "A peer-support space for the Isomo Academy community.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

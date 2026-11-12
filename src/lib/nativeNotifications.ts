@@ -16,7 +16,7 @@ async function ensureMentionChannel() {
   if (!channels.some((channel) => channel.id === mentionChannelId)) {
     await LocalNotifications.createChannel({
       id: mentionChannelId,
-      name: 'Isomo Tea mentions',
+      name: 'Isomo Support mentions',
       description: 'Alerts when someone mentions you in a conversation.',
       importance: 4,
     })
@@ -24,7 +24,7 @@ async function ensureMentionChannel() {
   if (!channels.some((channel) => channel.id === messageChannelId)) {
     await LocalNotifications.createChannel({
       id: messageChannelId,
-      name: 'Isomo Tea messages',
+      name: 'Isomo Support messages',
       description: 'Alerts for new messages in your conversations.',
       importance: 4,
     })
@@ -105,7 +105,7 @@ export async function showNativeMentionNotification(mention: MentionNotification
   await LocalNotifications.schedule({
     notifications: [{
       id: notificationId(mention.messageId),
-      title: 'Isomo Tea',
+      title: 'Isomo Support',
       body: `@${mention.author} mentioned you.`,
       ...(Capacitor.getPlatform() === 'android' ? { channelId: mentionChannelId } : {}),
     }],

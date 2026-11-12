@@ -36,7 +36,7 @@ type ChatListPaneProps = {
   communityAvatarUrl: string
   deltaPreview: string | null
   deltaLatestAt: string | null
-  onOpenDeltaTea: () => void
+  onOpenSupportCircle: () => void
   onOpenConversation: (conversation: PrivateConversationSummary) => void
   onClearSelection: () => void
   onNewChat: () => void
@@ -62,7 +62,7 @@ export function ChatListPane({
   communityAvatarUrl,
   deltaPreview,
   deltaLatestAt,
-  onOpenDeltaTea,
+  onOpenSupportCircle,
   onOpenConversation,
   onClearSelection,
   onNewChat,
@@ -105,9 +105,9 @@ export function ChatListPane({
 
   return (
     <>
-      <aside className="chat-list-pane" aria-label="Chats" style={{ flexBasis: `${width}px` }}>
+      <aside className="chat-list-pane" aria-label="Conversations" style={{ flexBasis: `${width}px` }}>
         <header className="chat-list-header">
-          <h1>Messages</h1>
+          <h1>Conversations</h1>
           <div className="chat-list-header-actions">
             {activeKind !== 'none' && <button onClick={onClearSelection} type="button" aria-label="Clear selected conversation" title="Clear selected conversation"><CircleX size={17} /></button>}
             <button onClick={onNewChat} type="button" aria-label="Start a new chat" title="Start a new chat"><Plus size={18} /></button>
@@ -116,14 +116,14 @@ export function ChatListPane({
         <div className="chat-list-items">
           <button
             className={`chat-list-item ${activeKind === 'tea' ? 'active' : ''}`}
-            onClick={onOpenDeltaTea}
+            onClick={onOpenSupportCircle}
             type="button"
             aria-current={activeKind === 'tea' ? 'page' : undefined}
           >
             <img className="chat-list-avatar" src={communityAvatarUrl} alt="" />
             <span className="chat-list-item-copy">
               <span className="chat-list-item-top"><strong>{communityName}</strong><time>{formatChatTime(deltaLatestAt)}</time></span>
-              <span className="chat-list-item-bottom"><span>{deltaPreview ?? 'Community chat'}</span>
+              <span className="chat-list-item-bottom"><span>{deltaPreview ?? 'A place to listen and support'}</span>
                 {deltaUnreadCount > 0 && <b aria-label={`${deltaUnreadCount} unread messages`}>{deltaUnreadCount > 99 ? '99+' : deltaUnreadCount}</b>}
               </span>
             </span>
@@ -149,7 +149,7 @@ export function ChatListPane({
           ))}
           {loading && !conversations.length && <p className="chat-list-status">Loading chats…</p>}
           {!loading && error && <p className="chat-list-status error" role="status">Private chats could not be refreshed.</p>}
-          {!loading && !error && !conversations.length && <p className="chat-list-status">Your private conversations will appear here.</p>}
+          {!loading && !error && !conversations.length && <p className="chat-list-status">One-to-one conversations will appear here when you start them.</p>}
         </div>
         <button className="chat-list-new-chat" onClick={onNewChat} type="button"><MessageCircle size={15} /> New chat</button>
       </aside>

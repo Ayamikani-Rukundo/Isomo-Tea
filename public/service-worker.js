@@ -53,7 +53,7 @@ self.addEventListener('fetch', (event) => {
               const cache = await caches.open(CACHE_NAME)
               await cache.put('/index.html', response.clone())
             } catch (error) {
-              console.error('Could not cache the Isomo Tea app shell.', error)
+              console.error('Could not cache the Isomo Support app shell.', error)
             }
           }
           return response
@@ -77,12 +77,12 @@ self.addEventListener('fetch', (event) => {
               const cache = await caches.open(CACHE_NAME)
               await cache.put(request, response.clone())
             } catch (error) {
-              console.error('Could not cache an Isomo Tea app asset.', error)
+              console.error('Could not cache an Isomo Support app asset.', error)
             }
           }
           return response
         } catch (error) {
-          console.warn('Using the cached Isomo Tea app asset while offline.', error)
+          console.warn('Using the cached Isomo Support app asset while offline.', error)
           return (await caches.match(request, { ignoreVary: true })) ?? Response.error()
         }
       })(),
@@ -99,7 +99,7 @@ self.addEventListener('fetch', (event) => {
               const cache = await caches.open(CACHE_NAME)
               await cache.put(request, response.clone())
             } catch (error) {
-              console.error('Could not cache a static Isomo Tea asset.', error)
+              console.error('Could not cache a static Isomo Support asset.', error)
             }
           }
           return response
@@ -124,7 +124,7 @@ self.addEventListener('push', (event) => {
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
     if (windows.some((client) => client.visibilityState === 'visible')) return
-    const title = typeof payload.title === 'string' ? payload.title : 'Isomo Tea'
+    const title = typeof payload.title === 'string' ? payload.title : 'Isomo Support'
     const body = typeof payload.body === 'string' ? payload.body : 'You have a new message.'
     const url = typeof payload.url === 'string' && payload.url.startsWith('/')
       ? payload.url

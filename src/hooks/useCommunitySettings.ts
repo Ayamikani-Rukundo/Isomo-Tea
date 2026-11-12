@@ -4,7 +4,7 @@ import { requireSupabase } from '../lib/supabase'
 
 const defaultCommunityProfile: CommunityProfile = {
   id: '',
-  title: 'Delta Tea',
+  title: 'Support Circle',
   avatarPath: null,
   avatarUrl: '/delta-tea-avatar.png',
 }
@@ -48,7 +48,7 @@ export function useCommunitySettings(userId?: string) {
         if (!active || currentRequest !== requestVersion) return
         setSettings({
           id: conversation.id,
-          title: conversation.title?.trim() || 'Delta Tea',
+          title: conversation.title?.trim() || 'Support Circle',
           avatarPath: conversation.avatar_path,
           avatarUrl,
         })

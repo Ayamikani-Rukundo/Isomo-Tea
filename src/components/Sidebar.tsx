@@ -33,7 +33,7 @@ export function Sidebar({
   const [signingOut, setSigningOut] = useState(false)
   const [signOutError, setSignOutError] = useState('')
   const links: { id: AppSection; label: string; icon: typeof MessageCircle; unread?: string }[] = [
-    { id: 'inbox', label: 'Messages', icon: MessageCircle, unread: messageUnreadCount > 0 ? messageUnreadCount > 99 ? '99+' : String(messageUnreadCount) : undefined },
+    { id: 'inbox', label: 'Conversations', icon: MessageCircle, unread: messageUnreadCount > 0 ? messageUnreadCount > 99 ? '99+' : String(messageUnreadCount) : undefined },
     { id: 'profile', label: 'Your profile', icon: CircleUserRound },
     ...(isAdministrator ? [{ id: 'admin' as const, label: 'Admin codes', icon: ShieldCheck }] : []),
   ]
@@ -57,10 +57,10 @@ export function Sidebar({
         <Brand compact={collapsed} onClick={() => onNavigate('inbox')} />
         <div className="community-chip" title="Isomo Academy">
           <span className="community-avatar">IA</span>
-          <span><strong>Isomo Academy</strong><small>Private community</small></span>
+          <span><strong>Isomo Academy</strong><small>Peer support space</small></span>
         </div>
         <nav className="primary-nav" aria-label="Main navigation">
-          <p className="nav-caption">YOUR SPACE</p>
+          <p className="nav-caption">SUPPORT SPACE</p>
           {links.map(({ id, label, icon: Icon, unread }) => (
             <button
               className={`nav-link ${(id === 'inbox' ? active === 'inbox' || active === 'tea' : active === id) ? 'selected' : ''}`}
@@ -85,7 +85,7 @@ export function Sidebar({
       <div className="sidebar-bottom">
         <div className="daily-note">
           <span className="note-spark">✳</span>
-          <p><strong>Come and tell us.</strong><br />Messages which are not tea are not allowed.</p>
+          <p><strong>You’re not alone.</strong><br />Share at your own pace.</p>
         </div>
         <button
           className="theme-toggle"
@@ -101,7 +101,7 @@ export function Sidebar({
           {avatarUrl
             ? <img className="avatar sidebar-avatar" src={avatarUrl} alt="" />
             : <span className="avatar avatar-self">{username.slice(0, 1).toUpperCase() || '?'}</span>}
-          <span><strong>{username}</strong><small>Come and tell us.</small></span>
+          <span><strong>{username}</strong><small>Here to listen.</small></span>
           <span className="mini-status" />
         </div>
         {signOutError && <p className="sidebar-signout-error" role="alert">{signOutError}</p>}

@@ -849,6 +849,7 @@
 .auth-benefits { display: flex; flex-wrap: wrap; gap: 11px 22px; margin-top: 30px; }
 .auth-benefits span { display: inline-flex; align-items: center; gap: 8px; color: #d1dbce; font-size: 11px; }
 .auth-benefits svg { flex: 0 0 auto; color: #b6e783; }
+.auth-art-copy > p.auth-support-note { max-width: 470px; margin: 18px 0 0; color: #a8b2a7; font-size: 11px; line-height: 1.6; }
 .auth-art-footer { position: relative; z-index: 1; display: grid; gap: 10px; }
 .auth-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
 .auth-install { display: grid; gap: 5px; color: #a8b2a7; font-size: 11px; line-height: 1.55; }

@@ -473,7 +473,7 @@ export function useConversationChat(
             .eq('kind', 'general')
             .maybeSingle()
           if (roomError) throw roomError
-          if (!room) throw new Error('The Delta Tea conversation is unavailable to this account.')
+          if (!room) throw new Error('The Support Circle is unavailable to this account.')
           roomId = room.id
         } else {
           if (!participantId && !existingConversationId) {
@@ -723,14 +723,14 @@ export function useConversationChat(
         })
       } catch (loadError) {
         if (!active) return
-        console.error('Could not load Delta Tea messages.', loadError)
+        console.error('Could not load Support Circle messages.', loadError)
         setMessages([])
         setLoadingEarlier(false)
         setHasMore(false)
         setOwnerId(contextKey)
         setConversationId(null)
         activeConversationId.current = null
-        setError(`Could not load ${kind === 'general' ? 'Delta Tea' : 'private conversation'}: ${errorText(loadError)}`)
+        setError(`Could not load ${kind === 'general' ? 'Support Circle' : 'private conversation'}: ${errorText(loadError)}`)
         setConnectionStatus('disconnected')
       } finally {
         if (active) setLoading(false)
@@ -843,7 +843,7 @@ export function useConversationChat(
       }
       setMessages((current) => mergeMessages(current, [message]))
     } catch (sendError) {
-      console.error(`Could not send a ${kind === 'general' ? 'Delta Tea' : 'private'} message.`, sendError)
+      console.error(`Could not send a ${kind === 'general' ? 'Support Circle' : 'private'} message.`, sendError)
       if (activeUserId.current !== userId || activeConversationId.current !== pending.conversationId) return
       setMessages((current) => current.map((message) => (
         message.id === pending.id ? { ...message, deliveryStatus: 'failed' } : message
@@ -942,7 +942,7 @@ export function useConversationChat(
         setError((current) => current.startsWith('Media sent.') ? current : '')
       }
     } catch (uploadError) {
-      console.error(`Could not send media to the ${kind === 'general' ? 'Delta Tea' : 'private'} conversation.`, uploadError)
+      console.error(`Could not send media to the ${kind === 'general' ? 'Support Circle' : 'private'} conversation.`, uploadError)
       if (activeUserId.current !== userId || activeConversationId.current !== pending.conversationId) return
       setMessages((current) => current.map((message) => (
         message.id === pending.id ? { ...message, deliveryStatus: 'failed' } : message
@@ -1496,7 +1496,7 @@ export function useConversationChat(
       setHasMore(rows.length === PAGE_SIZE)
     } catch (pageError) {
       if (activeUserId.current !== userId || activeConversationId.current !== visibleConversationId) return
-      console.error('Could not load earlier Delta Tea messages.', pageError)
+      console.error('Could not load earlier Support Circle messages.', pageError)
       setError(`Could not load earlier messages: ${errorText(pageError)}`)
     } finally {
       if (activeUserId.current === userId) setLoadingEarlier(false)

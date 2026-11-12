@@ -195,7 +195,7 @@ Deno.serve(async (request) => {
           || new Date(preference.notifications_snoozed_until).getTime() <= Date.now())
     }))
     const title = conversation.kind === 'general'
-      ? conversation.title || 'Delta Tea'
+      ? conversation.title || 'Support Circle'
       : `@${sender?.username ?? 'A classmate'}`
     const body = message.body.trim().slice(0, 180) || 'Sent a new message.'
     const payload = JSON.stringify({

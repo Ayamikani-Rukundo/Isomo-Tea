@@ -237,8 +237,8 @@ function AppContent() {
       .then(({ count, error }) => {
         if (!active) return
         if (error) {
-          console.error('Could not load Delta Tea unread count.', error)
-          setDeltaUnreadError('Delta Tea unread messages could not be counted.')
+          console.error('Could not load Support Circle unread count.', error)
+          setDeltaUnreadError('Support Circle unread messages could not be counted.')
           return
         }
         setDeltaUnreadCount(count ?? 0)
@@ -287,7 +287,7 @@ function AppContent() {
           setNotificationPermission(permission)
           if (permission !== 'granted') {
             setSettingsError(permission === 'denied'
-              ? 'Notifications are blocked. Allow Isomo Tea notifications in Android settings, then try again.'
+              ? 'Notifications are blocked. Allow Isomo Support notifications in Android settings, then try again.'
               : 'Android did not grant notification permission. Please try again.')
             return
           }
@@ -426,7 +426,7 @@ function AppContent() {
     deltaUnreadError: isOnline ? deltaUnreadError : '',
     deltaLatestMessage: deltaLatestPreview,
     deltaLatestAt: latestGeneralMessage?.createdAt ?? null,
-    onOpenDeltaTea: () => navigate('tea'),
+    onOpenSupportCircle: () => navigate('tea'),
     onOpenConversation: (conversation: (typeof privateInbox.conversations)[number]) => openPrivateConversation(
       conversation.conversationId,
       conversation.peerUsername,
@@ -477,7 +477,7 @@ function AppContent() {
             && (!notificationsEnabled || notificationPermission !== 'granted')
             && <div className="notification-prompt-banner" role="status">
                 <Bell size={18} />
-                <span><strong>Stay in the loop</strong><small>Get new-message alerts when Isomo Tea isn’t open.</small></span>
+                <span><strong>Stay in the loop</strong><small>Get new-message alerts when Isomo Support isn’t open.</small></span>
                 <button onClick={() => {
                   if (notificationPermission === 'denied') navigate('profile')
                   else void changeNotifications(true)
@@ -496,7 +496,7 @@ function AppContent() {
             communityAvatarUrl={communitySettings.avatarUrl}
             deltaPreview={deltaLatestPreview}
             deltaLatestAt={latestGeneralMessage?.createdAt ?? null}
-            onOpenDeltaTea={() => navigate('tea')}
+            onOpenSupportCircle={() => navigate('tea')}
             onOpenConversation={(conversation) => openPrivateConversation(
               conversation.conversationId,
               conversation.peerUsername,
@@ -520,7 +520,7 @@ function AppContent() {
             : visibleSection === 'inbox' && !privateChatEnabled
             ? <>
                 <PrivateInboxView {...privateInboxViewProps} className="mobile-inbox-only" />
-                <ChatLandingPane communityName={communitySettings.title} onOpenDeltaTea={() => navigate('tea')} onNewChat={startNewConversation} />
+                <ChatLandingPane communityName={communitySettings.title} onOpenSupportCircle={() => navigate('tea')} onNewChat={startNewConversation} />
               </>
             : <ChatView
                 kind={visibleSection === 'inbox' ? 'inbox' : 'tea'}
