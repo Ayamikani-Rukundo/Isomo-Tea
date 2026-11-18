@@ -1,6 +1,7 @@
 import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react'
-import { CircleX, MessageCircle, Plus } from 'lucide-react'
-import type { PrivateConversationSummary } from '../types'
+import { CircleX, MessageCircle, Plus, Trash2, Users } from 'lucide-react'
+import type { GroupConversationSummary, PrivateConversationSummary } from '../types'
+import { ConfirmDialog } from './ConfirmDialog'
 
 const chatListMinWidth = 280
 const chatListMaxWidth = 500
@@ -27,9 +28,10 @@ function readChatListWidth() {
 
 type ChatListPaneProps = {
   conversations: PrivateConversationSummary[]
+  groups: GroupConversationSummary[]
   loading: boolean
   error?: string
-  activeKind: 'tea' | 'inbox' | 'none'
+  activeKind: 'tea' | 'inbox' | 'group' | 'none'
   activeConversationId?: string | null
   deltaUnreadCount: number
   communityName: string
@@ -37,9 +39,13 @@ type ChatListPaneProps = {
   deltaPreview: string | null
   deltaLatestAt: string | null
   onOpenSupportCircle: () => void
+  onOpenGroup: (group: GroupConversationSummary) => void
+  onDeleteGroup: (conversationId: string) => Promise<void>
   onOpenConversation: (conversation: PrivateConversationSummary) => void
+  onDeleteConversation: (conversationId: string) => Promise<boolean>
   onClearSelection: () => void
   onNewChat: () => void
+  onCreateGroup: () => void
 }
 
 function formatChatTime(value: string | null) {
@@ -53,6 +59,7 @@ function formatChatTime(value: string | null) {
 
 export function ChatListPane({
   conversations,
+  groups,
   loading,
   error = '',
   activeKind,
@@ -63,12 +70,28 @@ export function ChatListPane({
   deltaPreview,
   deltaLatestAt,
   onOpenSupportCircle,
+  onOpenGroup,
+  onDeleteGroup,
   onOpenConversation,
+  onDeleteConversation,
   onClearSelection,
   onNewChat,
+  onCreateGroup,
 }: ChatListPaneProps) {
   const [width, setWidth] = useState(readChatListWidth)
   const draggingPointer = useRef<number | null>(null)
+  const [conversationToDelete, setConversationToDelete] = useState<PrivateConversationSummary | null>(null)
+  const [groupActionError, setGroupActionError] = useState('')
+
+  async function retryGroupDeletion(conversationId: string) {
+    try {
+      await onDeleteGroup(conversationId)
+      setGroupActionError('')
+    } catch (error) {
+      console.error('Could not complete group deletion.', error)
+      setGroupActionError(error instanceof Error ? error.message : 'Group deletion could not be completed. Retry to continue.')
+    }
+  }
 
   function updateWidth(nextWidth: number) {
     const next = clampChatListWidth(nextWidth)
@@ -111,8 +134,10 @@ export function ChatListPane({
           <div className="chat-list-header-actions">
             {activeKind !== 'none' && <button onClick={onClearSelection} type="button" aria-label="Clear selected conversation" title="Clear selected conversation"><CircleX size={17} /></button>}
             <button onClick={onNewChat} type="button" aria-label="Start a new chat" title="Start a new chat"><Plus size={18} /></button>
+            <button onClick={onCreateGroup} type="button" aria-label="Create a group" title="Create a group"><Users size={17} /></button>
           </div>
         </header>
+        {groupActionError && <p className="chat-list-status error" role="alert">{groupActionError}</p>}
         <div className="chat-list-items">
           <button
             className={`chat-list-item ${activeKind === 'tea' ? 'active' : ''}`}
@@ -128,10 +153,33 @@ export function ChatListPane({
               </span>
             </span>
           </button>
+          {groups.map((group) => (
+            <div className="chat-list-group-row" key={group.conversationId}>
+            <button
+              className={`chat-list-item ${activeKind === 'group' && activeConversationId === group.conversationId ? 'active' : ''}`}
+              disabled={group.deletionPending}
+              onClick={() => onOpenGroup(group)}
+              type="button"
+              aria-current={activeKind === 'group' && activeConversationId === group.conversationId ? 'page' : undefined}
+            >
+              <img className="chat-list-avatar" src={group.avatarUrl} alt="" />
+              <span className="chat-list-item-copy">
+                <span className="chat-list-item-top"><strong>{group.title}</strong><time>{formatChatTime(group.latestMessageAt)}</time></span>
+                <span className="chat-list-item-bottom"><span>{group.deletionPending
+                  ? 'Deletion cleanup pending · retry to finish'
+                  : group.latestMessage ?? `${group.memberCount} members · ${group.myRole === 'admin' ? 'Group admin' : 'Group'}`}</span>
+                  {group.unreadCount > 0 && !group.deletionPending && <b aria-label={`${group.unreadCount} unread messages`}>{group.unreadCount > 99 ? '99+' : group.unreadCount}</b>}
+                </span>
+              </span>
+            </button>
+            {group.deletionPending && <button className="chat-list-delete-button" onClick={() => { void retryGroupDeletion(group.conversationId) }} type="button" aria-label={`Retry deletion of ${group.title}`} title="Retry deletion cleanup"><Trash2 size={14} /></button>}
+            </div>
+          ))}
           {conversations.map((conversation) => (
+          <div className="chat-list-private-row" key={conversation.conversationId}>
           <button
             className={`chat-list-item ${activeKind === 'inbox' && activeConversationId === conversation.conversationId ? 'active' : ''}`}
-            key={conversation.conversationId}
+            disabled={conversation.deletionPending}
             onClick={() => onOpenConversation(conversation)}
             type="button"
             aria-current={activeKind === 'inbox' && activeConversationId === conversation.conversationId ? 'page' : undefined}
@@ -140,16 +188,31 @@ export function ChatListPane({
               ? <img className="chat-list-avatar" src={conversation.peerAvatarUrl} alt="" referrerPolicy="no-referrer" />
               : <span className="chat-list-avatar chat-list-avatar-fallback">{conversation.peerUsername.slice(0, 1).toUpperCase()}</span>}
             <span className="chat-list-item-copy">
-              <span className="chat-list-item-top"><strong>@{conversation.peerUsername}</strong><time>{formatChatTime(conversation.latestMessageAt)}</time></span>
-              <span className="chat-list-item-bottom"><span>{conversation.latestMessage ?? 'No messages yet'}</span>
-                {conversation.unreadCount > 0 && <b aria-label={`${conversation.unreadCount} unread messages`}>{conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}</b>}
+              <span className="chat-list-item-top"><strong>{conversation.peerId ? `@${conversation.peerUsername}` : conversation.peerUsername}</strong><time>{formatChatTime(conversation.latestMessageAt)}</time></span>
+              <span className="chat-list-item-bottom"><span>{conversation.deletionPending
+                ? 'Deletion cleanup pending · retry to finish'
+                : conversation.latestMessage ?? 'No messages yet'}</span>
+                {conversation.unreadCount > 0 && !conversation.deletionPending && <b aria-label={`${conversation.unreadCount} unread messages`}>{conversation.unreadCount > 99 ? '99+' : conversation.unreadCount}</b>}
               </span>
             </span>
           </button>
+          <button
+            className="chat-list-delete-button"
+            onClick={() => {
+              if (conversation.deletionPending) void onDeleteConversation(conversation.conversationId)
+              else setConversationToDelete(conversation)
+            }}
+            type="button"
+            aria-label={conversation.deletionPending
+              ? `Retry deletion of conversation with ${conversation.peerUsername}`
+              : `Permanently delete conversation with ${conversation.peerUsername}`}
+            title={conversation.deletionPending ? 'Retry deletion cleanup' : 'Delete chat and messages for everyone'}
+          ><Trash2 size={14} /></button>
+          </div>
           ))}
-          {loading && !conversations.length && <p className="chat-list-status">Loading chats…</p>}
-          {!loading && error && <p className="chat-list-status error" role="status">Private chats could not be refreshed.</p>}
-          {!loading && !error && !conversations.length && <p className="chat-list-status">One-to-one conversations will appear here when you start them.</p>}
+          {loading && !conversations.length && !groups.length && <p className="chat-list-status">Loading chats…</p>}
+          {!loading && error && <p className="chat-list-status error" role="status">Chats and groups could not be refreshed.</p>}
+          {!loading && !error && !conversations.length && !groups.length && <p className="chat-list-status">Your groups and one-to-one conversations appear here.</p>}
         </div>
         <button className="chat-list-new-chat" onClick={onNewChat} type="button"><MessageCircle size={15} /> New chat</button>
       </aside>
@@ -176,6 +239,17 @@ export function ChatListPane({
         onKeyDown={resizeFromKeyboard}
         onDoubleClick={() => updateWidth(chatListDefaultWidth)}
       />
+      {conversationToDelete && !conversationToDelete.deletionPending && <ConfirmDialog
+        title="Permanently delete conversation?"
+        message="This permanently deletes the chat and all messages and media for both people. This cannot be undone."
+        confirmLabel="Delete permanently"
+        onCancel={() => setConversationToDelete(null)}
+        onConfirm={() => {
+          const conversationId = conversationToDelete.conversationId
+          setConversationToDelete(null)
+          void onDeleteConversation(conversationId)
+        }}
+      />}
     </>
   )
 }

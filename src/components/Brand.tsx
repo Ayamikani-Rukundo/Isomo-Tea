@@ -8,17 +8,17 @@ export function Brand({ compact = false, onClick }: BrandProps) {
   const content = (
     <>
       <span className="brand-mark" aria-hidden="true">
-        <img src="/favicon.svg" alt="" />
+        <img src="/icons/ifam-icon-512.png" alt="" />
       </span>
       {!compact && (
         <span className="brand-wordmark">
-          <strong>isomo</strong>
-          <span>support</span>
+          <strong>i</strong>
+          <span>Fam</span>
         </span>
       )}
     </>
   )
   return onClick
     ? <button className={className} onClick={onClick} type="button">{content}</button>
-    : <div className={className} aria-label="Isomo Support">{content}</div>
+    : <div className={className} aria-label="i Fam">{content}</div>
 }

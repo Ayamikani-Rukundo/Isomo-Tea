@@ -1,14 +1,14 @@
 const CACHE_PREFIX = 'isomo-shell-'
-const CACHE_NAME = `${CACHE_PREFIX}v4`
+const CACHE_NAME = `${CACHE_PREFIX}v5`
 const APP_SHELL = [
   '/',
   '/index.html',
   '/manifest.webmanifest',
-  '/favicon.svg',
+  '/favicon.ico',
   '/chat-wallpaper.svg',
-  '/icons/isomo-tea-icon-192.png',
-  '/icons/isomo-tea-icon-512.png',
-  '/icons/isomo-tea-icon-1536.png',
+  '/icons/ifam-icon-192.png',
+  '/icons/ifam-icon-512.png',
+  '/icons/ifam-icon-1536.png',
   '/icons/apple-touch-icon-180.png',
   '/stickers/tea.svg',
   '/stickers/leaf.svg',
@@ -53,7 +53,7 @@ self.addEventListener('fetch', (event) => {
               const cache = await caches.open(CACHE_NAME)
               await cache.put('/index.html', response.clone())
             } catch (error) {
-              console.error('Could not cache the Isomo Support app shell.', error)
+              console.error('Could not cache the i Fam app shell.', error)
             }
           }
           return response
@@ -77,12 +77,12 @@ self.addEventListener('fetch', (event) => {
               const cache = await caches.open(CACHE_NAME)
               await cache.put(request, response.clone())
             } catch (error) {
-              console.error('Could not cache an Isomo Support app asset.', error)
+              console.error('Could not cache an i Fam app asset.', error)
             }
           }
           return response
         } catch (error) {
-          console.warn('Using the cached Isomo Support app asset while offline.', error)
+          console.warn('Using the cached i Fam app asset while offline.', error)
           return (await caches.match(request, { ignoreVary: true })) ?? Response.error()
         }
       })(),
@@ -99,7 +99,7 @@ self.addEventListener('fetch', (event) => {
               const cache = await caches.open(CACHE_NAME)
               await cache.put(request, response.clone())
             } catch (error) {
-              console.error('Could not cache a static Isomo Support asset.', error)
+              console.error('Could not cache a static i Fam asset.', error)
             }
           }
           return response
@@ -124,15 +124,15 @@ self.addEventListener('push', (event) => {
   event.waitUntil((async () => {
     const windows = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
     if (windows.some((client) => client.visibilityState === 'visible')) return
-    const title = typeof payload.title === 'string' ? payload.title : 'Isomo Support'
+    const title = typeof payload.title === 'string' ? payload.title : 'i Fam'
     const body = typeof payload.body === 'string' ? payload.body : 'You have a new message.'
     const url = typeof payload.url === 'string' && payload.url.startsWith('/')
       ? payload.url
       : '/?section=inbox'
     await self.registration.showNotification(title, {
       body,
-      icon: '/icons/isomo-tea-icon-192.png',
-      badge: '/icons/isomo-tea-icon-192.png',
+      icon: '/icons/ifam-icon-192.png',
+      badge: '/icons/ifam-icon-192.png',
       tag: typeof payload.tag === 'string' ? payload.tag : 'isomo-message',
       data: { url },
     })

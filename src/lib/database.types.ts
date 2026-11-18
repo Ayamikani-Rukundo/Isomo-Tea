@@ -38,13 +38,31 @@ export type Database = {
         Relationships: []
       }
       conversations: {
-        Row: { id: string; kind: 'general' | 'private'; title: string | null; avatar_path: string | null; created_by: string | null; participant_low: string | null; participant_high: string | null; created_at: string; updated_at: string }
+        Row: { id: string; kind: 'general' | 'private' | 'group'; title: string | null; avatar_path: string | null; created_by: string | null; participant_low: string | null; participant_high: string | null; deleting_at: string | null; created_at: string; updated_at: string }
         Insert: never
         Update: never
         Relationships: []
       }
       conversation_members: {
-        Row: { conversation_id: string; user_id: string; joined_at: string; last_read_at: string | null; hidden_at: string | null }
+        Row: { conversation_id: string; user_id: string; role: 'member' | 'admin'; joined_at: string; last_read_at: string | null; hidden_at: string | null }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
+      group_invites: {
+        Row: { token_hash: string; conversation_id: string; created_by: string; expires_at: string; max_uses: number; uses: number; revoked_at: string | null; created_at: string }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
+      conversation_deletion_jobs: {
+        Row: { id: string; conversation_id: string; kind: 'private' | 'group'; actor_id: string | null; avatar_path: string | null; created_at: string }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
+      conversation_deletion_media: {
+        Row: { job_id: string; object_path: string }
         Insert: never
         Update: never
         Relationships: []
@@ -152,6 +170,38 @@ export type Database = {
       consume_access_code: { Args: { p_code: string }; Returns: boolean }
       is_administrator: { Args: { p_user_id?: string }; Returns: boolean }
       get_or_create_private_conversation: { Args: { p_other_user_id: string }; Returns: string }
+      create_group_conversation: { Args: { p_title: string }; Returns: string }
+      get_group_conversation_list: {
+        Args: Record<PropertyKey, never>
+        Returns: Array<{
+          conversation_id: string
+          title: string | null
+          avatar_path: string | null
+          latest_message: string | null
+          latest_message_at: string | null
+          unread_count: number
+          member_count: number
+          my_role: 'member' | 'admin'
+          deletion_pending: boolean
+        }>
+      }
+      get_group_members: {
+        Args: { p_conversation_id: string }
+        Returns: Array<{ user_id: string; username: string; avatar_url: string | null; role: 'member' | 'admin' }>
+      }
+      open_group_conversation: { Args: { p_conversation_id: string }; Returns: string }
+      create_group_invite: { Args: { p_conversation_id: string }; Returns: string }
+      join_group_by_invite: { Args: { p_token: string }; Returns: string }
+      change_group_member_role: { Args: { p_conversation_id: string; p_user_id: string; p_role: string }; Returns: string }
+      update_group_settings: { Args: { p_conversation_id: string; p_title: string; p_avatar_path: string | null }; Returns: string }
+      leave_group: { Args: { p_conversation_id: string }; Returns: string }
+      get_all_groups_for_administrator: {
+        Args: Record<PropertyKey, never>
+        Returns: Array<{ conversation_id: string; title: string | null; avatar_path: string | null; member_count: number }>
+      }
+      delete_group_message: { Args: { p_message_id: string }; Returns: string }
+      start_conversation_deletion: { Args: { p_conversation_id: string; p_actor_id: string }; Returns: Json }
+      complete_conversation_deletion: { Args: { p_job_id: string; p_actor_id: string }; Returns: boolean }
       get_private_conversation_list: {
         Args: Record<PropertyKey, never>
         Returns: Array<{
@@ -163,6 +213,7 @@ export type Database = {
           latest_message_at: string | null
           unread_count: number
           last_read_at: string | null
+          deletion_pending: boolean
         }>
       }
       hide_private_conversation: { Args: { p_conversation_id: string }; Returns: string }

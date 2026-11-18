@@ -12,23 +12,18 @@ export type NativeNotificationPermission = PermissionState | 'unavailable'
 
 async function ensureMentionChannel() {
   if (Capacitor.getPlatform() !== 'android' || mentionChannelReady) return
-  const { channels } = await LocalNotifications.listChannels()
-  if (!channels.some((channel) => channel.id === mentionChannelId)) {
-    await LocalNotifications.createChannel({
-      id: mentionChannelId,
-      name: 'Isomo Support mentions',
-      description: 'Alerts when someone mentions you in a conversation.',
-      importance: 4,
-    })
-  }
-  if (!channels.some((channel) => channel.id === messageChannelId)) {
-    await LocalNotifications.createChannel({
-      id: messageChannelId,
-      name: 'Isomo Support messages',
-      description: 'Alerts for new messages in your conversations.',
-      importance: 4,
-    })
-  }
+  await LocalNotifications.createChannel({
+    id: mentionChannelId,
+    name: 'i Fam mentions',
+    description: 'Alerts when someone mentions you in a conversation.',
+    importance: 4,
+  })
+  await LocalNotifications.createChannel({
+    id: messageChannelId,
+    name: 'i Fam messages',
+    description: 'Alerts for new messages in your conversations.',
+    importance: 4,
+  })
   mentionChannelReady = true
 }
 
@@ -105,7 +100,7 @@ export async function showNativeMentionNotification(mention: MentionNotification
   await LocalNotifications.schedule({
     notifications: [{
       id: notificationId(mention.messageId),
-      title: 'Isomo Support',
+      title: 'i Fam',
       body: `@${mention.author} mentioned you.`,
       ...(Capacitor.getPlatform() === 'android' ? { channelId: mentionChannelId } : {}),
     }],

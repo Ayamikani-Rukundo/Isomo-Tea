@@ -42,6 +42,7 @@ export function usePrivateInbox(session: Session | null, enabled: boolean) {
         latestMessageAt: row.latest_message_at,
         unreadCount: row.unread_count,
         lastReadAt: row.last_read_at,
+        deletionPending: row.deletion_pending,
       }))
       setState((current) => ({
         ownerId: userId,
@@ -99,6 +100,11 @@ export function usePrivateInbox(session: Session | null, enabled: boolean) {
         table: 'conversation_members',
         filter: `user_id=eq.${userId}`,
       }, scheduleRefresh)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'conversations',
+      }, scheduleRefresh)
       .subscribe((status) => {
         if (!active) return
         if (status === 'SUBSCRIBED') {
@@ -121,14 +127,21 @@ export function usePrivateInbox(session: Session | null, enabled: boolean) {
     }
   }, [enabled, refresh, userId])
 
-  const hideConversation = useCallback(async (conversationId: string) => {
+  const deleteConversation = useCallback(async (conversationId: string) => {
     if (!userId) return false
     const requestUserId = userId
     try {
-      const { error } = await requireSupabase().rpc('hide_private_conversation', {
-        p_conversation_id: conversationId,
+      const { data, error } = await requireSupabase().functions.invoke<{ deleted: boolean }>('delete-conversation', {
+        body: { conversationId },
       })
-      if (error) throw error
+      if (error) {
+        if (error.context instanceof Response) {
+          const payload = await error.context.json().catch(() => null) as { error?: string } | null
+          throw new Error(payload?.error ?? error.message)
+        }
+        throw new Error(error.message)
+      }
+      if (!data?.deleted) throw new Error('The conversation deletion service returned an invalid response.')
       if (latestUserId.current !== requestUserId) return false
       setState((current) => current?.ownerId === userId
         ? {
@@ -140,7 +153,7 @@ export function usePrivateInbox(session: Session | null, enabled: boolean) {
       return true
     } catch (error) {
       if (latestUserId.current !== requestUserId) return false
-      console.error('Could not hide the private conversation.', error)
+      console.error('Could not delete the private conversation.', error)
       setState((current) => current?.ownerId === userId
         ? { ...current, error: errorText(error) }
         : current)
@@ -154,6 +167,6 @@ export function usePrivateInbox(session: Session | null, enabled: boolean) {
     error: isCurrent ? state.error : '',
     connectionStatus: isCurrent ? state.connectionStatus : 'connecting',
     refresh,
-    hideConversation,
+    deleteConversation,
   }
 }

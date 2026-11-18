@@ -67,17 +67,17 @@ export function AuthScreen({ initialMode, onAuthenticated }: AuthScreenProps) {
       }
       setInstallStatus(choice.outcome === 'accepted'
         ? isWindowsDevice
-          ? 'Install accepted. If it does not open automatically, launch Isomo Support from Start or your browser’s apps list, then pin it from its taskbar icon.'
-          : 'Install accepted. If it does not open automatically, launch Isomo Support from your home screen or browser’s apps list.'
+          ? 'Install accepted. If it does not open automatically, launch i Fam from Start or your browser’s apps list, then pin it from its taskbar icon.'
+          : 'Install accepted. If it does not open automatically, launch i Fam from your home screen or browser’s apps list.'
         : 'Install cancelled. You can try again from your browser’s app menu.')
     } catch (installError) {
       console.error('PWA installation could not be started.', installError)
-      setInstallStatus('Installation could not be started. Use your browser’s app menu to install Isomo Support.')
+      setInstallStatus('Installation could not be started. Use your browser’s app menu to install i Fam.')
     }
   }
 
   function reloadApp() {
-    if ((username || password || accessCode || adminEmail) && !window.confirm('Reload Isomo Support? Unsaved sign-in details will be cleared.')) return
+    if ((username || password || accessCode || adminEmail) && !window.confirm('Reload i Fam? Unsaved sign-in details will be cleared.')) return
     window.location.reload()
   }
 
@@ -147,13 +147,13 @@ export function AuthScreen({ initialMode, onAuthenticated }: AuthScreenProps) {
       <div className="auth-art">
         <div className="auth-brand-row">
           <Brand />
-          {installed && !isNativeApp && <button className="auth-refresh-button" onClick={reloadApp} type="button" aria-label="Reload Isomo Support" title="Reload Isomo Support"><RefreshCw size={15} /></button>}
+          {installed && !isNativeApp && <button className="auth-refresh-button" onClick={reloadApp} type="button" aria-label="Reload i Fam" title="Reload i Fam"><RefreshCw size={15} /></button>}
         </div>
         <div className="auth-art-copy">
           <span className="eyebrow">PEER SUPPORT · ISOMO ACADEMY</span>
           <h1>You can share<br /><em>at your own pace.</em></h1>
           <p>A welcoming place to talk about what you’re going through, listen, and support one another.</p>
-          <div className="auth-benefits" aria-label="Isomo Support features">
+          <div className="auth-benefits" aria-label="i Fam features">
             <span><LockKeyhole size={15} /> Join with an alias</span>
             <span><MessageCircle size={15} /> Support Circle and one-to-one chats</span>
             <span><Bell size={15} /> Turn on message alerts after signing in</span>
@@ -168,7 +168,7 @@ export function AuthScreen({ initialMode, onAuthenticated }: AuthScreenProps) {
             </button>
             <div className="auth-downloads">
               {androidApkUrl
-                ? <a className="app-download-button" href={androidApkUrl} aria-label="Download the Isomo Support Android APK">
+                ? <a className="app-download-button" href={androidApkUrl} aria-label="Download the i Fam Android APK">
                     <Smartphone size={17} />
                     <span><strong>Download APK</strong><small>{import.meta.env.VITE_ANDROID_APK_VERSION || 'Android app'}{import.meta.env.VITE_ANDROID_APK_SIZE ? ` · ${import.meta.env.VITE_ANDROID_APK_SIZE}` : ''}</small></span>
                     <ArrowDownToLine size={15} />
@@ -183,7 +183,7 @@ export function AuthScreen({ initialMode, onAuthenticated }: AuthScreenProps) {
             {showInstallHelp && !installPromptAvailable && !installed && <p className="auth-install-status" role="status">
               No install prompt is available. In Edge, use <strong>… → Apps → Install this site as an app</strong>; in Chrome, use <strong>⋮ → Install page as app</strong>. Windows users can pin the taskbar icon after installation; the browser and operating system control launch behavior and pinning.
             </p>}
-            {installed && <p className="auth-install-status">{isWindowsDevice ? 'Installed. On Windows, right-click its taskbar icon and choose “Pin to taskbar”.' : 'Isomo Support is installed. Open it from your home screen or apps list.'}</p>}
+            {installed && <p className="auth-install-status">{isWindowsDevice ? 'Installed. On Windows, right-click its taskbar icon and choose “Pin to taskbar”.' : 'i Fam is installed. Open it from your home screen or apps list.'}</p>}
             {installStatus && <p className="auth-install-status" role="status">{installStatus}</p>}
           </div>
         </div>}
@@ -191,7 +191,7 @@ export function AuthScreen({ initialMode, onAuthenticated }: AuthScreenProps) {
       </div>
       <section className="auth-form-side">
         <div className="auth-form-box">
-          <span className="eyebrow">{mode === 'admin' ? 'ADMIN SIGN IN' : 'ISOMO SUPPORT'}</span>
+          <span className="eyebrow">{mode === 'admin' ? 'ADMIN SIGN IN' : 'I FAM'}</span>
           <h2>{mode === 'login' ? 'Welcome back.' : mode === 'admin' ? 'Administrator sign in.' : 'Choose your alias.'}</h2>
           <p className="auth-subtitle">{mode === 'login' ? 'Sign in to your support space.' : mode === 'admin' ? 'Sign in with your administrator account.' : 'Choose an alias the community can use to get to know you.'}</p>
           <div className="auth-tabs" role="tablist" aria-label="Account options">

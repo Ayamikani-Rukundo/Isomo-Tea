@@ -82,7 +82,7 @@ function messageAuthorStyle(identity: string): CSSProperties {
 }
 
 type ChatViewProps = {
-  kind: 'tea' | 'inbox'
+  kind: 'tea' | 'inbox' | 'group'
   messages: DemoMessage[]
   onSend: (text: string, replyToId?: string) => void
   onReplyInbox: (author: string, authorId?: string) => void
@@ -90,6 +90,7 @@ type ChatViewProps = {
   onOpenChatList?: () => void
   onBack?: () => void
   privateName?: string
+  chatKey?: string
   communityName?: string
   communityAvatarUrl?: string
   liveMessages?: boolean
@@ -99,6 +100,7 @@ type ChatViewProps = {
   onEditMessage?: (messageId: string, text: string) => Promise<boolean>
   onDeleteMessageForMe?: (messageId: string) => Promise<boolean>
   onDeleteMessageForEveryone?: (messageId: string) => Promise<boolean>
+  canModerateMessages?: boolean
   chatError?: string
   hasMoreMessages?: boolean
   loadingEarlier?: boolean
@@ -556,6 +558,7 @@ export function ChatView({
   onOpenChatList,
   onBack,
   privateName = 'moonlit.mango',
+  chatKey,
   communityName = 'Support Circle',
   communityAvatarUrl = '/delta-tea-avatar.png',
   liveMessages = false,
@@ -565,6 +568,7 @@ export function ChatView({
   onEditMessage,
   onDeleteMessageForMe,
   onDeleteMessageForEveryone,
+  canModerateMessages = false,
   chatError = '',
   hasMoreMessages = false,
   loadingEarlier = false,
@@ -583,7 +587,7 @@ export function ChatView({
   theme = 'dark',
   nativeMobileExperience = false,
 }: ChatViewProps) {
-  const draftStorageKey = `isomo-chat-draft:${currentUserId ?? 'anonymous'}:${kind}:${kind === 'tea' ? 'general' : privateName}`
+  const draftStorageKey = `isomo-chat-draft:${currentUserId ?? 'anonymous'}:${kind}:${kind === 'tea' ? 'general' : chatKey ?? privateName}`
   const [storedDraft, setStoredDraft] = useState(() => ({
     key: draftStorageKey,
     value: readChatDraft(draftStorageKey),
@@ -656,7 +660,8 @@ export function ChatView({
   const [nativePhoneLayout, setNativePhoneLayout] = useState(
     () => nativeMobileExperience && window.innerWidth <= 850,
   )
-  const isTea = kind === 'tea'
+  const isGroupConversation = kind !== 'inbox'
+  const isSupportCircle = kind === 'tea'
   const selectionMode = selectedMessageIds.length > 0
   const newestMessageId = messages[messages.length - 1]?.id
   const todayLabel = new Date().toLocaleDateString(undefined, { month: 'short', day: 'numeric' }).toUpperCase()
@@ -691,8 +696,8 @@ export function ChatView({
   }, [hasMoreMessages, loadingEarlier, messages, onLoadEarlier])
 
   useEffect(() => {
-    conversationKeyRef.current = `${kind}:${privateName}`
-  }, [kind, privateName])
+    conversationKeyRef.current = `${kind}:${chatKey ?? privateName}`
+  }, [chatKey, kind, privateName])
 
   useEffect(() => {
     if (isNearBottomRef.current) {
@@ -1037,7 +1042,7 @@ export function ChatView({
 
   const selectedMessages = messages.filter((message) => selectedMessageIds.includes(message.id))
   const everyoneCanDeleteSelection = selectedMessages.length > 0
-    && selectedMessages.every((message) => message.mine && !message.deletedAt)
+    && selectedMessages.every((message) => (message.mine || canModerateMessages) && !message.deletedAt)
 
   function submitAttachment() {
     if (!attachments.length || !onSendMedia || !liveMessages || !canSend) return
@@ -1189,24 +1194,24 @@ export function ChatView({
   return (
     <main className="chat-main">
       <header className="chat-header">
-        {!isTea && <button className="icon-button mobile-back" onClick={onBack} type="button" aria-label="Back"><ArrowLeft size={19} /></button>}
-        {isTea && onOpenChatList && <button className="icon-button mobile-chat-list" onClick={onOpenChatList} type="button" aria-label="Open chat list"><MessageSquare size={18} /></button>}
+        {!isGroupConversation && <button className="icon-button mobile-back" onClick={onBack} type="button" aria-label="Back"><ArrowLeft size={19} /></button>}
+        {isGroupConversation && onOpenChatList && <button className="icon-button mobile-chat-list" onClick={onOpenChatList} type="button" aria-label="Open chat list"><MessageSquare size={18} /></button>}
         {nativeMobileExperience && <button
           className="icon-button native-mobile-back"
-          onClick={isTea ? onOpenChatList : onBack}
+          onClick={isGroupConversation ? onOpenChatList : onBack}
           type="button"
           aria-label="Back to chats"
         ><ArrowLeft size={19} /></button>}
-        <button className="chat-heading" onClick={isTea ? onOpenMembers : undefined} type="button">
-          <span className={`room-avatar ${isTea ? 'room-avatar-tea' : 'avatar-coral'}`}>
-            {isTea ? <img src={communityAvatarUrl} alt="" /> : privateName === 'Private Inbox' ? 'PI' : privateName.slice(0, 2).toUpperCase()}
-            {isTea && <i className="status-dot online" />}
+        <button className="chat-heading" onClick={isGroupConversation ? onOpenMembers : undefined} type="button">
+          <span className={`room-avatar ${isGroupConversation ? 'room-avatar-tea' : 'avatar-coral'}`}>
+            {isGroupConversation ? <img src={communityAvatarUrl} alt="" /> : privateName === 'Private Inbox' ? 'PI' : privateName.slice(0, 2).toUpperCase()}
+            {isSupportCircle && <i className="status-dot online" />}
           </span>
           <span className="heading-copy">
-            <strong>{isTea ? communityName : privateName}</strong>
-            <small>{isTea ? 'Community conversation' : 'Private conversation'}</small>
+            <strong>{isGroupConversation ? communityName : privateName}</strong>
+            <small>{isSupportCircle ? 'Support Circle conversation' : isGroupConversation ? 'Private group conversation' : 'Private conversation'}</small>
           </span>
-          {isTea && <ChevronDown size={16} className="heading-chevron" />}
+          {isGroupConversation && <ChevronDown size={16} className="heading-chevron" />}
         </button>
         <span className="header-spacer" />
         <button
@@ -1230,8 +1235,8 @@ export function ChatView({
               </div>)
             : <small className="mention-empty">No mentions yet.</small>}
         </div>}
-        {isTea && (
-          <button className="icon-button members-trigger" onClick={onOpenMembers} type="button" aria-label="Open community members">
+        {isGroupConversation && (
+          <button className="icon-button members-trigger" onClick={onOpenMembers} type="button" aria-label="Open group info and members">
             <Users size={18} />
           </button>
         )}
@@ -1338,7 +1343,7 @@ export function ChatView({
                     {hasTextBubble && <div className={`message-bubble ${message.mine ? 'bubble-mine' : ''} ${message.deletedAt ? 'message-deleted' : ''}`}>
                       {!message.mine && !grouped && <strong className="message-author">{message.author}</strong>}
                       {message.replyToId && <button className="message-reply-preview" onClick={() => { void jumpToReply(message.replyToId!) }} type="button" aria-label="Jump to the message this replies to">
-                        <strong style={messageAuthorStyle(replyTarget?.authorId ?? replyTarget?.author ?? message.replyPreview?.author ?? 'former member')}>{message.replyPreview?.author ?? replyTarget?.author ?? 'Reply'}</strong>
+                        <strong style={messageAuthorStyle(replyTarget?.authorId ?? replyTarget?.author ?? message.replyPreview?.author ?? 'User deleted')}>{message.replyPreview?.author ?? replyTarget?.author ?? 'Reply'}</strong>
                         <span>{renderMessageBody(message.replyPreview?.body ?? replyTarget?.body ?? 'Original message unavailable', memberUsernames)}</span>
                       </button>}
                       {!visiblePoll && !visibleSticker && <span className="message-body">{renderMessageBody(message.body, memberUsernames)}</span>}
@@ -1448,14 +1453,14 @@ export function ChatView({
                             setSelectedMessageIds((current) => [...new Set([...current, ...actionMessageIds])])
                             setMenuFor(null)
                           }} type="button"><Check size={14} /> Select</button>
-                          {isTea && !message.mine && (!liveMessages || message.authorId) && <button onClick={() => { onReplyInbox(message.author, message.authorId); setMenuFor(null) }} type="button"><Send size={14} /> Reply Inbox</button>}
+                          {isGroupConversation && !message.mine && (!liveMessages || message.authorId) && <button onClick={() => { onReplyInbox(message.author, message.authorId); setMenuFor(null) }} type="button"><Send size={14} /> Reply Inbox</button>}
                           {liveMessages && message.mine && !message.deletedAt && <button onClick={() => {
                             setEditingMessage(message)
                             setReplyingTo(null)
                             setDraft(message.body)
                             setMenuFor(null)
                           }} type="button"><Pencil size={14} /> Edit message</button>}
-                          {liveMessages && <button onClick={() => requestDeleteMessages(actionMessageIds, groupedMediaMessages.every((item) => item.mine && !item.deletedAt))} type="button"><Trash2 size={14} /> Delete</button>}
+                          {liveMessages && <button onClick={() => requestDeleteMessages(actionMessageIds, groupedMediaMessages.every((item) => (item.mine || canModerateMessages) && !item.deletedAt))} type="button"><Trash2 size={14} /> Delete</button>}
                           {!message.deletedAt && !message.media && !message.poll && !message.sticker && Boolean(message.body.trim()) && <button onClick={() => {
                             if (!navigator.clipboard) {
                               setNotice('Clipboard access is unavailable in this browser.')
@@ -1661,7 +1666,7 @@ export function ChatView({
                 composerFormRef.current?.requestSubmit()
               }
             }}
-            placeholder={nativePhoneLayout ? 'Mbabarira, umbwire…' : isTea ? 'Share what feels right…' : `Message ${privateName}…`}
+            placeholder={nativePhoneLayout ? 'Mbabarira, umbwire…' : isSupportCircle ? 'Share what feels right…' : `Message ${isGroupConversation ? communityName : privateName}…`}
             maxLength={10000}
             rows={1}
           />
@@ -1686,9 +1691,9 @@ export function ChatView({
           }} type="button" aria-label="Create a poll" aria-expanded={showPollComposer}><BarChart3 size={18} /></button>
           <button className={`send-button ${(draft.trim() || attachments.length) && canSend && online ? 'ready' : ''}`} type="submit" aria-label={attachments.length ? 'Send media' : 'Send message'} disabled={(!draft.trim() && !attachments.length) || !canSend || !online}><Send size={17} /></button>
         </form>
-        <div className="composer-hint"><span><Sparkles size={11} /> Your story matters. Share only what feels right.</span>        <span><span className="desktop-hint">{isTea ? 'Listen kindly. Support each other.' : 'One-to-one conversation.'}</span><span className="mobile-hint">{liveMessages ? 'Sent to this conversation' : 'Preview only · local, not delivered'}</span> <span className="hint-heart">♥</span></span></div>
+        <div className="composer-hint"><span><Sparkles size={11} /> Your story matters. Share only what feels right.</span>        <span><span className="desktop-hint">{isSupportCircle ? 'Listen kindly. Support each other.' : isGroupConversation ? 'Private group conversation.' : 'One-to-one conversation.'}</span><span className="mobile-hint">{liveMessages ? 'Sent to this conversation' : 'Preview only · local, not delivered'}</span> <span className="hint-heart">♥</span></span></div>
       </div>
-      {isTea && <button className="mobile-members" onClick={onOpenMembers} type="button"><Users size={16} /> Community</button>}
+      {isGroupConversation && <button className="mobile-members" onClick={onOpenMembers} type="button"><Users size={16} /> {isSupportCircle ? 'Community' : 'Group info'}</button>}
       {notice && <div className="chat-notice" role="status">{notice}</div>}
       {deleteConfirmation && <div
         className="message-delete-overlay"

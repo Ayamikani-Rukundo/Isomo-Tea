@@ -34,7 +34,7 @@ if (-not (Test-Path -LiteralPath $androidHome -PathType Container)) {
   throw "Android SDK not found at $androidHome."
 }
 
-$outputApk = Join-Path $outputDirectory "IsomoSupport-$Version.apk"
+$outputApk = Join-Path $outputDirectory "iFam-$Version.apk"
 if (Test-Path -LiteralPath $outputApk) {
   throw "Output already exists: $outputApk. Choose another -Version or move the existing APK first."
 }

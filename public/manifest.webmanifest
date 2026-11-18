@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "Isomo Support",
-  "short_name": "Isomo Support",
+  "name": "i Fam",
+  "short_name": "i Fam",
   "description": "A peer-support space for the Isomo Academy community.",
   "start_url": "/",
   "scope": "/",
@@ -13,27 +13,27 @@
   "theme_color": "#0b141a",
   "icons": [
     {
-      "src": "/icons/isomo-tea-icon-192.png",
+      "src": "/icons/ifam-icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "/icons/isomo-tea-icon-512.png",
+      "src": "/icons/ifam-icon-512.png",
       "sizes": "512x512",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "/icons/isomo-tea-icon-1536.png",
+      "src": "/icons/ifam-icon-1536.png",
       "sizes": "1536x1536",
       "type": "image/png",
-      "purpose": "any maskable"
+      "purpose": "any"
     },
     {
-      "src": "/favicon.svg",
-      "sizes": "any",
-      "type": "image/svg+xml",
+      "src": "/favicon.ico",
+      "sizes": "16x16 32x32 48x48",
+      "type": "image/x-icon",
       "purpose": "any"
     }
   ]

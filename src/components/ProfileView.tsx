@@ -395,7 +395,7 @@ export function ProfileView({
       {profileEnabled
         ? <button className="signout-button" onClick={() => void handleSignOut()} disabled={signingOut} type="button">{signingOut ? 'Signing out…' : 'Sign out'}</button>
         : null}
-      {profileEnabled && <p className="profile-footnote">Your account preferences are saved to your Isomo Support account.</p>}
+      {profileEnabled && <p className="profile-footnote">Your account preferences are saved to your i Fam account.</p>}
     </main>
   )
 }

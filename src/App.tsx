@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Capacitor } from '@capacitor/core'
 import { Bell, X } from 'lucide-react'
 import { ChatView } from './components/ChatView'
@@ -7,6 +7,8 @@ import { AdminDashboard } from './components/AdminDashboard'
 import { MemberPanel } from './components/MemberPanel'
 import { ProfileView } from './components/ProfileView'
 import { PrivateInboxView } from './components/PrivateInboxView'
+import { GroupInfoPanel } from './components/GroupInfoPanel'
+import { CreateGroupDialog } from './components/CreateGroupDialog'
 import { ChatListPane } from './components/ChatListPane'
 import { ChatLandingPane } from './components/ChatLandingPane'
 import { Sidebar } from './components/Sidebar'
@@ -17,6 +19,7 @@ import { clearLocalSession, signOut } from './lib/auth'
 import { useConversationChat, useGeneralChat } from './hooks/useGeneralChat'
 import { useCommunityMembers } from './hooks/useCommunityMembers'
 import { usePrivateInbox } from './hooks/usePrivateInbox'
+import { useGroups, useGroupMembers } from './hooks/useGroups'
 import { useCommunitySettings } from './hooks/useCommunitySettings'
 import { loadUserSettings, saveUserSettings } from './lib/settings'
 import {
@@ -46,6 +49,10 @@ function AppContent() {
   const [privateName, setPrivateName] = useState('Private Inbox')
   const [privatePeerId, setPrivatePeerId] = useState<string | null>(null)
   const [privateConversationId, setPrivateConversationId] = useState<string | null>(null)
+  const [selectedGroupId, setSelectedGroupId] = useState<string | null>(null)
+  const [showCreateGroup, setShowCreateGroup] = useState(false)
+  const [groupInviteError, setGroupInviteError] = useState('')
+  const processedInviteRef = useRef('')
   const [startingConversation, setStartingConversation] = useState(false)
   const [notificationsEnabled, setNotificationsEnabled] = useState(true)
   const [notificationsSnoozedUntil, setNotificationsSnoozedUntil] = useState<string | null>(null)
@@ -64,9 +71,13 @@ function AppContent() {
   const signedInLanding = Boolean(session && (section === 'welcome' || section === 'auth'))
   const generalChatEnabled = Boolean(session)
   const generalChat = useGeneralChat(session, generalChatEnabled, profile)
+  const groupConversationList = useGroups(session, section === 'inbox' || signedInLanding)
+  const selectedGroup = groupConversationList.groups.find((group) => group.conversationId === selectedGroupId) ?? null
+  const groupChatEnabled = Boolean(session && section === 'inbox' && selectedGroupId)
   const privateChatEnabled = Boolean(
     session
     && section === 'inbox'
+    && !groupChatEnabled
     && (privatePeerId || privateConversationId),
   )
   const privateChat = useConversationChat(
@@ -77,6 +88,16 @@ function AppContent() {
     privatePeerId ?? undefined,
     privateConversationId ?? undefined,
   )
+  const groupChat = useConversationChat(
+    session,
+    groupChatEnabled,
+    profile,
+    'group',
+    undefined,
+    selectedGroupId ?? undefined,
+  )
+  const inboxChat = groupChatEnabled ? groupChat : privateChat
+  const groupMembers = useGroupMembers(session, selectedGroupId, groupChatEnabled && showMembers)
   const privateInbox = usePrivateInbox(session, section === 'inbox' || section === 'tea' || signedInLanding)
   const community = useCommunityMembers(profile?.id, Boolean(
     session && (section === 'tea' || section === 'inbox' || signedInLanding),
@@ -87,6 +108,28 @@ function AppContent() {
     || (latestGeneralMessage?.media
       ? `${latestGeneralMessage.media.kind === 'image' ? 'Photo' : latestGeneralMessage.media.kind === 'video' ? 'Video' : 'Audio'}${latestGeneralMessage.media.viewOnce ? ' · View once' : ''}`
       : latestGeneralMessage?.poll ? 'Poll' : latestGeneralMessage?.sticker ? 'Sticker' : null)
+  const groupInviteToken = new URLSearchParams(window.location.search).get('groupInvite')
+  const joinGroupByInvite = groupConversationList.joinByInvite
+
+  useEffect(() => {
+    if (!session || !groupInviteToken || processedInviteRef.current === groupInviteToken) return
+    processedInviteRef.current = groupInviteToken
+    setGroupInviteError('')
+    void joinGroupByInvite(groupInviteToken).then((conversationId) => {
+      const url = new URL(window.location.href)
+      url.searchParams.delete('groupInvite')
+      window.history.replaceState(null, '', url)
+      setSelectedGroupId(conversationId)
+      setPrivatePeerId(null)
+      setPrivateConversationId(null)
+      setStartingConversation(false)
+      setSection('inbox')
+      setShowMembers(false)
+    }).catch((error: unknown) => {
+      console.error('Could not join a group from the invite link.', error)
+      setGroupInviteError(error instanceof Error ? error.message : 'The group invite link could not be used.')
+    })
+  }, [groupInviteToken, joinGroupByInvite, session])
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true)
@@ -254,9 +297,10 @@ function AppContent() {
     }
     if (next === 'admin' && !isAdministrator) return
     if (next === 'tea' || section === 'tea') markDeltaRead()
-    if (next === 'inbox') {
+    if (next === 'inbox' || next === 'tea') {
       setPrivatePeerId(null)
       setPrivateConversationId(null)
+      setSelectedGroupId(null)
       setStartingConversation(false)
     }
     setSection(next)
@@ -287,7 +331,7 @@ function AppContent() {
           setNotificationPermission(permission)
           if (permission !== 'granted') {
             setSettingsError(permission === 'denied'
-              ? 'Notifications are blocked. Allow Isomo Support notifications in Android settings, then try again.'
+              ? 'Notifications are blocked. Allow i Fam notifications in Android settings, then try again.'
               : 'Android did not grant notification permission. Please try again.')
             return
           }
@@ -333,6 +377,7 @@ function AppContent() {
     setPrivateName(username)
     setPrivatePeerId(userId ?? null)
     setPrivateConversationId(null)
+    setSelectedGroupId(null)
     setStartingConversation(false)
     setSection('inbox')
     setShowMembers(false)
@@ -342,6 +387,17 @@ function AppContent() {
     setPrivateName(username)
     setPrivatePeerId(peerId)
     setPrivateConversationId(conversationId)
+    setSelectedGroupId(null)
+    setStartingConversation(false)
+    setSection('inbox')
+    setShowMembers(false)
+  }
+
+  function openGroupChat(groupOrId: string | (typeof groupConversationList.groups)[number]) {
+    const conversationId = typeof groupOrId === 'string' ? groupOrId : groupOrId.conversationId
+    setSelectedGroupId(conversationId)
+    setPrivatePeerId(null)
+    setPrivateConversationId(null)
     setStartingConversation(false)
     setSection('inbox')
     setShowMembers(false)
@@ -358,6 +414,7 @@ function AppContent() {
     setSettingsError('')
     setPrivatePeerId(null)
     setPrivateConversationId(null)
+    setSelectedGroupId(null)
     setStartingConversation(false)
     setShowMembers(false)
     setDeltaReadMarker(null)
@@ -379,6 +436,7 @@ function AppContent() {
     setSettingsError('')
     setPrivatePeerId(null)
     setPrivateConversationId(null)
+    setSelectedGroupId(null)
     setStartingConversation(false)
     setShowMembers(false)
     setDeltaReadMarker(null)
@@ -392,34 +450,38 @@ function AppContent() {
     : authenticatedSection && (!session || loading)
       ? 'welcome'
       : section
-  const nativeMobileChat = nativeApp && (visibleSection === 'tea' || privateChatEnabled)
+  const nativeMobileChat = nativeApp && (visibleSection === 'tea' || privateChatEnabled || groupChatEnabled)
   const nativeMobileChatList = nativeApp
     && visibleSection === 'inbox'
     && !privateChatEnabled
+    && !groupChatEnabled
     && !startingConversation
   const nativeMobilePicker = nativeApp
     && visibleSection === 'inbox'
     && !privateChatEnabled
+    && !groupChatEnabled
     && startingConversation
   const appShellClasses = [
     'app-shell',
-    showMembers && visibleSection === 'tea' ? 'members-open' : '',
+    showMembers && (visibleSection === 'tea' || groupChatEnabled) ? 'members-open' : '',
     nativeApp ? 'native-app-shell' : '',
     nativeMobileChat ? 'native-mobile-chat' : '',
     nativeMobileChatList ? 'native-mobile-chat-list' : '',
     nativeMobilePicker ? 'native-mobile-picker' : '',
-    nativeApp && showMembers && visibleSection === 'tea' ? 'native-mobile-members-open' : '',
+    nativeApp && showMembers && (visibleSection === 'tea' || groupChatEnabled) ? 'native-mobile-members-open' : '',
   ].filter(Boolean).join(' ')
   const privateUnreadCount = privateInbox.conversations.reduce((total, conversation) => total + conversation.unreadCount, 0)
+  const groupsUnreadCount = groupConversationList.groups.reduce((total, group) => total + group.unreadCount, 0)
   const privateInboxViewProps = {
     conversations: privateInbox.conversations,
+    groups: groupConversationList.groups,
     members: community.members,
     currentUserId: profile?.id,
     loading: Boolean(session && privateInbox.loading),
     loadingMembers: Boolean(session && community.loading),
     loadingMoreMembers: community.loadingMore,
     hasMoreMembers: Boolean(session && community.hasMore),
-    error: isOnline ? privateInbox.error || community.error : '',
+    error: isOnline ? privateInbox.error || groupConversationList.error || community.error || groupInviteError : '',
     deltaUnreadCount,
     communityName: communitySettings.title,
     communityAvatarUrl: communitySettings.avatarUrl,
@@ -427,19 +489,23 @@ function AppContent() {
     deltaLatestMessage: deltaLatestPreview,
     deltaLatestAt: latestGeneralMessage?.createdAt ?? null,
     onOpenSupportCircle: () => navigate('tea'),
+    onOpenGroup: openGroupChat,
+    onDeleteGroup: groupConversationList.deleteConversation,
+    onCreateGroup: () => setShowCreateGroup(true),
     onOpenConversation: (conversation: (typeof privateInbox.conversations)[number]) => openPrivateConversation(
       conversation.conversationId,
       conversation.peerUsername,
       conversation.peerId,
     ),
     onStartConversation: (member: (typeof community.members)[number]) => openPrivateChat(member.username, member.id),
-    onHideConversation: privateInbox.hideConversation,
+    onDeleteConversation: privateInbox.deleteConversation,
     onLoadMoreMembers: () => { void community.loadMore() },
   }
   function startNewConversation() {
     if (section === 'tea') markDeltaRead()
     setPrivatePeerId(null)
     setPrivateConversationId(null)
+    setSelectedGroupId(null)
     setSection('inbox')
     setShowMembers(false)
     setStartingConversation(true)
@@ -448,6 +514,7 @@ function AppContent() {
     if (section === 'tea') markDeltaRead()
     setPrivatePeerId(null)
     setPrivateConversationId(null)
+    setSelectedGroupId(null)
     setStartingConversation(false)
     setSection('inbox')
     setShowMembers(false)
@@ -462,8 +529,8 @@ function AppContent() {
             username={profile?.username ?? 'your.alias'}
             avatarUrl={profile?.avatarUrl}
             isAdministrator={isAdministrator}
-            collapsed={showMembers && visibleSection === 'tea'}
-            messageUnreadCount={deltaUnreadCount + privateUnreadCount}
+            collapsed={showMembers && (visibleSection === 'tea' || groupChatEnabled)}
+            messageUnreadCount={deltaUnreadCount + privateUnreadCount + groupsUnreadCount}
             isOnline={isOnline}
             onNavigate={navigate}
             onToggleTheme={toggleTheme}
@@ -477,7 +544,7 @@ function AppContent() {
             && (!notificationsEnabled || notificationPermission !== 'granted')
             && <div className="notification-prompt-banner" role="status">
                 <Bell size={18} />
-                <span><strong>Stay in the loop</strong><small>Get new-message alerts when Isomo Support isn’t open.</small></span>
+                <span><strong>Stay in the loop</strong><small>Get new-message alerts when i Fam isn’t open.</small></span>
                 <button onClick={() => {
                   if (notificationPermission === 'denied') navigate('profile')
                   else void changeNotifications(true)
@@ -487,10 +554,11 @@ function AppContent() {
           {administratorError && <p className="admin-role-warning" role="alert">Administrator access could not be verified. Reload the app or sign in again to retry.</p>}
           {(visibleSection === 'tea' || visibleSection === 'inbox') && <ChatListPane
             conversations={privateInbox.conversations}
+            groups={groupConversationList.groups}
             loading={privateInbox.loading}
-            error={isOnline ? privateInbox.error : ''}
-            activeKind={visibleSection === 'tea' ? 'tea' : privateChatEnabled ? 'inbox' : 'none'}
-            activeConversationId={privateChat.conversationId ?? privateConversationId}
+            error={isOnline ? privateInbox.error || groupConversationList.error : ''}
+            activeKind={visibleSection === 'tea' ? 'tea' : groupChatEnabled ? 'group' : privateChatEnabled ? 'inbox' : 'none'}
+            activeConversationId={groupChatEnabled ? groupChat.conversationId ?? selectedGroupId : privateChat.conversationId ?? privateConversationId}
             deltaUnreadCount={deltaUnreadCount}
             communityName={communitySettings.title}
             communityAvatarUrl={communitySettings.avatarUrl}
@@ -502,8 +570,12 @@ function AppContent() {
               conversation.peerUsername,
               conversation.peerId,
             )}
+            onOpenGroup={openGroupChat}
+            onDeleteGroup={groupConversationList.deleteConversation}
+            onDeleteConversation={privateInbox.deleteConversation}
             onClearSelection={clearChatSelection}
             onNewChat={startNewConversation}
+            onCreateGroup={() => setShowCreateGroup(true)}
           />}
           {visibleSection === 'admin' && isAdministrator
             ? <AdminDashboard
@@ -515,26 +587,27 @@ function AppContent() {
               />
             : visibleSection === 'profile'
             ? <ProfileView key={`${profile?.id ?? ''}:${profile?.username ?? ''}`} theme={theme} username={profile?.username ?? ''} communityName={communitySettings.title} avatarUrl={profile?.avatarUrl ?? null} avatarPath={profile?.avatar_url ?? null} userId={profile?.id} notificationsEnabled={notificationsEnabled} notificationsSnoozedUntil={notificationsSnoozedUntil} nativeApp={nativeApp} notificationPermission={notificationPermission} settingsError={settingsError} profileError={profileError} profileEnabled={Boolean(session)} isAdministrator={isAdministrator} onUsernameChanged={refreshProfile} onAvatarChanged={refreshProfile} onToggleTheme={toggleTheme} onNotificationsChanged={changeNotifications} onNotificationSnoozeChanged={changeNotificationSnooze} onSignOut={handleSignOut} onAccountDeleted={handleAccountDeleted} />
-            : visibleSection === 'inbox' && !privateChatEnabled && startingConversation
+            : visibleSection === 'inbox' && !privateChatEnabled && !groupChatEnabled && startingConversation
             ? <PrivateInboxView {...privateInboxViewProps} mode="picker" onCancelPicker={() => setStartingConversation(false)} />
-            : visibleSection === 'inbox' && !privateChatEnabled
+            : visibleSection === 'inbox' && !privateChatEnabled && !groupChatEnabled
             ? <>
                 <PrivateInboxView {...privateInboxViewProps} className="mobile-inbox-only" />
                 <ChatLandingPane communityName={communitySettings.title} onOpenSupportCircle={() => navigate('tea')} onNewChat={startNewConversation} />
               </>
             : <ChatView
-                kind={visibleSection === 'inbox' ? 'inbox' : 'tea'}
+                kind={visibleSection === 'inbox' ? groupChatEnabled ? 'group' : 'inbox' : 'tea'}
                 messages={visibleSection === 'inbox'
-                  ? privateChatEnabled ? privateChat.messages : []
+                  ? groupChatEnabled || privateChatEnabled ? inboxChat.messages : []
                   : generalChat.messages}
                 onSend={(text, replyToId) => visibleSection === 'inbox'
-                  ? privateChatEnabled ? privateChat.send(text, replyToId) : undefined
+                  ? groupChatEnabled || privateChatEnabled ? inboxChat.send(text, replyToId) : undefined
                   : generalChat.send(text, replyToId)}
                 onReplyInbox={openPrivateChat}
                 onOpenMembers={() => setShowMembers(!showMembers)}
                 onOpenChatList={() => {
                   setPrivatePeerId(null)
                   setPrivateConversationId(null)
+                  setSelectedGroupId(null)
                   setStartingConversation(false)
                   setShowMembers(false)
                   setSection('inbox')
@@ -545,68 +618,78 @@ function AppContent() {
                   void privateInbox.refresh()
                 }}
                 privateName={privateName}
-                communityName={communitySettings.title}
-                communityAvatarUrl={communitySettings.avatarUrl}
-                liveMessages={Boolean(session && (visibleSection === 'tea' || visibleSection === 'inbox'))}
+                chatKey={groupChatEnabled ? selectedGroupId ?? undefined : privateConversationId ?? privatePeerId ?? undefined}
+                communityName={groupChatEnabled ? selectedGroup?.title ?? 'Group' : communitySettings.title}
+                communityAvatarUrl={groupChatEnabled ? selectedGroup?.avatarUrl ?? '/delta-tea-avatar.png' : communitySettings.avatarUrl}
+                liveMessages={Boolean(session && (visibleSection === 'tea' || privateChatEnabled || groupChatEnabled))}
                 loadingMessages={visibleSection === 'tea'
                   ? generalChat.loading
-                  : visibleSection === 'inbox' && session
-                    ? privateChat.loading
+                  : visibleSection === 'inbox' && session && (privateChatEnabled || groupChatEnabled)
+                    ? inboxChat.loading
                     : false}
                 canSend={visibleSection === 'tea'
                   ? Boolean(generalChat.conversationId)
-                  : Boolean(privateChat.conversationId)}
+                  : Boolean(inboxChat.conversationId)}
                 onToggleReaction={(messageId, emoji) => {
                   if (visibleSection === 'tea' && session) void generalChat.toggleReaction(messageId, emoji)
-                  else if (visibleSection === 'inbox' && privateChatEnabled) void privateChat.toggleReaction(messageId, emoji)
+                  else if (visibleSection === 'inbox' && (privateChatEnabled || groupChatEnabled)) void inboxChat.toggleReaction(messageId, emoji)
                 }}
                 onEditMessage={(messageId, text) => visibleSection === 'tea'
                   ? generalChat.editMessage(messageId, text)
-                  : privateChat.editMessage(messageId, text)}
+                  : inboxChat.editMessage(messageId, text)}
                 onDeleteMessageForMe={(messageId) => visibleSection === 'tea'
                   ? generalChat.deleteMessageForMe(messageId)
-                  : privateChat.deleteMessageForMe(messageId)}
-                onDeleteMessageForEveryone={(messageId) => visibleSection === 'tea'
-                  ? generalChat.deleteMessageForEveryone(messageId)
-                  : privateChat.deleteMessageForEveryone(messageId)}
+                  : inboxChat.deleteMessageForMe(messageId)}
+                onDeleteMessageForEveryone={(messageId) => {
+                  if (visibleSection === 'tea') return generalChat.deleteMessageForEveryone(messageId)
+                  const target = inboxChat.messages.find((message) => message.id === messageId)
+                  return groupChatEnabled && target && !target.mine
+                    ? groupChat.deleteGroupMessage(messageId)
+                    : inboxChat.deleteMessageForEveryone(messageId)
+                }}
+                canModerateMessages={groupChatEnabled && selectedGroup?.myRole === 'admin'}
                 chatError={!isOnline ? '' : visibleSection === 'tea' && session
                   ? [generalChat.error, communitySettings.error].filter(Boolean).join(' ')
                   : visibleSection === 'inbox' && session
-                    ? privateChatEnabled ? privateChat.error : 'Choose a member or an existing conversation from your Private Inbox.'
+                    ? privateChatEnabled || groupChatEnabled
+                      ? inboxChat.error
+                      : 'Choose a group, member, or existing conversation from your conversations.'
                     : ''}
                 hasMoreMessages={visibleSection === 'tea'
                   ? Boolean(session && generalChat.hasMore)
-                  : Boolean(session && privateChat.hasMore)}
-                loadingEarlier={visibleSection === 'tea' ? generalChat.loadingEarlier : privateChat.loadingEarlier}
-                onLoadEarlier={() => visibleSection === 'tea' ? generalChat.loadEarlier() : privateChat.loadEarlier()}
-                onRetryMessage={visibleSection === 'tea' ? generalChat.retry : privateChat.retry}
+                  : Boolean(session && inboxChat.hasMore)}
+                loadingEarlier={visibleSection === 'tea' ? generalChat.loadingEarlier : inboxChat.loadingEarlier}
+                onLoadEarlier={() => visibleSection === 'tea' ? generalChat.loadEarlier() : inboxChat.loadEarlier()}
+                onRetryMessage={visibleSection === 'tea' ? generalChat.retry : inboxChat.retry}
                 onSendMedia={(file, viewOnce, replyToId, mediaGroupId) => {
                   if (visibleSection === 'tea' && session) generalChat.sendMedia(file, viewOnce, replyToId, mediaGroupId)
-                  else if (visibleSection === 'inbox' && privateChatEnabled) privateChat.sendMedia(file, viewOnce, replyToId, mediaGroupId)
+                  else if (visibleSection === 'inbox' && (privateChatEnabled || groupChatEnabled)) inboxChat.sendMedia(file, viewOnce, replyToId, mediaGroupId)
                 }}
-                onOpenMedia={visibleSection === 'tea' ? generalChat.openMedia : privateChat.openMedia}
+                onOpenMedia={visibleSection === 'tea' ? generalChat.openMedia : inboxChat.openMedia}
                 onDiscardMedia={(messageId) => {
                   if (visibleSection === 'tea') void generalChat.discardPendingMedia(messageId)
-                  else void privateChat.discardPendingMedia(messageId)
+                  else void inboxChat.discardPendingMedia(messageId)
                 }}
                 onCreatePoll={(question, options, replyToId) => visibleSection === 'tea'
                   ? generalChat.createPoll(question, options, replyToId)
-                  : privateChat.createPoll(question, options, replyToId)}
+                  : inboxChat.createPoll(question, options, replyToId)}
                 onVotePoll={(messageId, optionId) => visibleSection === 'tea'
                   ? generalChat.votePoll(messageId, optionId)
-                  : privateChat.votePoll(messageId, optionId)}
+                  : inboxChat.votePoll(messageId, optionId)}
                 onSendSticker={(stickerCode, replyToId) => visibleSection === 'tea'
                   ? generalChat.sendSticker(stickerCode, replyToId)
-                  : privateChat.sendSticker(stickerCode, replyToId)}
+                  : inboxChat.sendSticker(stickerCode, replyToId)}
                 theme={theme}
-                mentionMembers={visibleSection === 'inbox'
-                  ? community.members.filter((member) => member.id === privatePeerId)
+                mentionMembers={groupChatEnabled
+                  ? groupMembers.members
+                  : visibleSection === 'inbox'
+                    ? community.members.filter((member) => member.id === privatePeerId)
                   : community.members}
                 currentUserId={profile?.id}
-                mentions={notificationsEnabled ? visibleSection === 'tea' ? generalChat.mentions : privateChat.mentions : []}
+                mentions={notificationsEnabled ? visibleSection === 'tea' ? generalChat.mentions : inboxChat.mentions : []}
                 onMarkMentionsRead={() => visibleSection === 'tea'
                   ? generalChat.markMentionsRead()
-                  : privateChat.markMentionsRead()}
+                  : inboxChat.markMentionsRead()}
                 nativeMobileExperience={nativeApp}
               />}
           {visibleSection === 'tea' && showMembers && <MemberPanel
@@ -620,6 +703,39 @@ function AppContent() {
             onLoadMore={() => { void community.loadMore() }}
             onMessage={openPrivateChat}
             onClose={() => setShowMembers(false)}
+          />}
+          {visibleSection === 'inbox' && groupChatEnabled && showMembers && selectedGroup && <GroupInfoPanel
+            key={selectedGroup.conversationId}
+            group={selectedGroup}
+            members={groupMembers.members}
+            currentUserId={profile?.id}
+            isAdministrator={isAdministrator}
+            loading={groupMembers.loading}
+            error={groupMembers.error}
+            onClose={() => setShowMembers(false)}
+            onMessage={openPrivateChat}
+            onUpdated={() => {
+              void groupConversationList.refresh()
+              void groupMembers.refresh()
+            }}
+            onLeave={async () => {
+              await groupConversationList.leaveGroup(selectedGroup.conversationId)
+              setShowMembers(false)
+              setSelectedGroupId(null)
+            }}
+            onDelete={async () => {
+              await groupConversationList.deleteConversation(selectedGroup.conversationId)
+              setShowMembers(false)
+              setSelectedGroupId(null)
+            }}
+          />}
+          {showCreateGroup && <CreateGroupDialog
+            onCreate={groupConversationList.createGroup}
+            onCreated={(conversationId) => {
+              setShowCreateGroup(false)
+              openGroupChat(conversationId)
+            }}
+            onClose={() => setShowCreateGroup(false)}
           />}
         </div>
       )

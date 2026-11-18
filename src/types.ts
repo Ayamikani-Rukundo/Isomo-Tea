@@ -32,6 +32,25 @@ export type PrivateConversationSummary = {
   latestMessageAt: string | null
   unreadCount: number
   lastReadAt: string | null
+  deletionPending: boolean
+}
+
+export type GroupConversationSummary = {
+  conversationId: string
+  title: string
+  avatarPath: string | null
+  avatarUrl: string
+  latestMessage: string | null
+  latestMessageAt: string | null
+  unreadCount: number
+  memberCount: number
+  myRole: 'member' | 'admin'
+  deletionPending: boolean
+}
+
+export type GroupMember = CommunityMember & {
+  id: string
+  role: 'member' | 'admin'
 }
 
 export type DemoMessage = {

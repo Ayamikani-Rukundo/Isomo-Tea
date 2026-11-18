@@ -35,7 +35,7 @@ type PendingMediaMessage = PendingMessage & {
 }
 type PersistedPendingMessage = { id: string; conversationId: string; body: string; replyToId?: string }
 type ConnectionStatus = 'idle' | 'connecting' | 'connected' | 'disconnected'
-type ConversationKind = 'general' | 'private'
+type ConversationKind = 'general' | 'private' | 'group'
 
 function isMessageRow(value: unknown): value is MessageRow {
   if (typeof value !== 'object' || value === null) return false
@@ -67,7 +67,7 @@ function initialsFor(username: string) {
 }
 
 function toMessage(row: MessageRow, profile: ProfileRow | undefined, userId: string): DemoMessage {
-  const author = profile?.username ?? 'former member'
+  const author = profile?.username ?? (row.sender_id ? 'Member' : 'User deleted')
   return {
     id: row.id,
     author: row.sender_id === userId ? 'you' : author,
@@ -224,7 +224,7 @@ export function useConversationChat(
     let needsCatchup = false
 
     async function refreshRecipientReadMarker(roomId: string) {
-      if (kind !== 'private') return
+      if (kind === 'general') return
       const { data, error: markerError } = await client
         .from('conversation_members')
         .select('user_id,last_read_at')
@@ -238,7 +238,7 @@ export function useConversationChat(
     }
 
     async function markConversationRead(roomId: string) {
-      if (kind !== 'private') return
+      if (kind === 'general') return
       const { data, error: markerError } = await client.rpc('mark_conversation_read', {
         p_conversation_id: roomId,
       })
@@ -299,6 +299,9 @@ export function useConversationChat(
     }
 
     async function mapRows(rows: MessageRow[], roomId: string) {
+      if (kind === 'general') {
+        rows = rows.filter((row) => row.sender_id !== null || row.system_event !== null)
+      }
       const messageIds = rows.map((row) => row.id)
       const { data: mediaRows, error: mediaError } = messageIds.length
         ? await client
@@ -389,7 +392,7 @@ export function useConversationChat(
             sticker: stickersById.get(row.id),
             replyPreview: parent
               ? {
-                  author: parent.sender_id ? profiles.get(parent.sender_id)?.username ?? 'former member' : 'former member',
+                  author: parent.sender_id ? profiles.get(parent.sender_id)?.username ?? 'Member' : 'User deleted',
                   body: parent.body,
                 }
               : undefined,
@@ -439,7 +442,11 @@ export function useConversationChat(
     async function receiveRealtimeMessage(value: unknown, roomId: string) {
       const row = isMessageRow(value) ? value : null
       if (!active || !row || row.conversation_id !== roomId) return
-      if (row.sender_id !== userId && kind === 'private') {
+      if (kind === 'general' && row.sender_id === null && row.system_event === null) {
+        setMessages((current) => current.filter((message) => message.id !== row.id))
+        return
+      }
+      if (row.sender_id !== userId && kind !== 'general') {
         void markConversationRead(roomId).catch((markerError) => {
           if (!active) return
           console.error('Could not update the private conversation read marker.', markerError)
@@ -475,7 +482,7 @@ export function useConversationChat(
           if (roomError) throw roomError
           if (!room) throw new Error('The Support Circle is unavailable to this account.')
           roomId = room.id
-        } else {
+        } else if (kind === 'private') {
           if (!participantId && !existingConversationId) {
             throw new Error('Select a community member or an existing private conversation.')
           }
@@ -485,6 +492,14 @@ export function useConversationChat(
           if (privateError) throw privateError
           if (typeof privateId !== 'string') throw new Error('The private conversation service returned an invalid conversation.')
           roomId = privateId
+        } else {
+          if (!existingConversationId) throw new Error('Select a group conversation.')
+          const { data: groupId, error: groupError } = await client.rpc('open_group_conversation', {
+            p_conversation_id: existingConversationId,
+          })
+          if (groupError) throw groupError
+          if (typeof groupId !== 'string') throw new Error('The group service returned an invalid conversation.')
+          roomId = groupId
         }
         if (!active) return
         setMessages([])
@@ -498,7 +513,7 @@ export function useConversationChat(
         activeConversationId.current = roomId
         let queuedMessages: PersistedPendingMessage[] = []
         let queuedMedia: QueuedMedia[] = []
-        if (kind === 'general' || kind === 'private') {
+        {
           queuedMessages = readOutbox(userId, roomId)
           try {
             queuedMedia = await loadQueuedMedia(userId, roomId)
@@ -622,6 +637,7 @@ export function useConversationChat(
             table: 'conversation_members',
             filter: `conversation_id=eq.${roomId}`,
           }, () => {
+            if (kind !== 'private') return
             void refreshRecipientReadMarker(roomId).catch((markerError) => {
               if (!active) return
               console.error('Could not refresh the private conversation read marker.', markerError)
@@ -713,7 +729,7 @@ export function useConversationChat(
           })),
         ]))
         setHasMore(rows.length === PAGE_SIZE)
-        if (kind === 'private') {
+        if (kind !== 'general') {
           await markConversationRead(roomId)
         }
         void refreshMentionNotifications().catch((mentionError) => {
@@ -730,7 +746,7 @@ export function useConversationChat(
         setOwnerId(contextKey)
         setConversationId(null)
         activeConversationId.current = null
-        setError(`Could not load ${kind === 'general' ? 'Support Circle' : 'private conversation'}: ${errorText(loadError)}`)
+        setError(`Could not load ${kind === 'general' ? 'Support Circle' : kind === 'group' ? 'group conversation' : 'private conversation'}: ${errorText(loadError)}`)
         setConnectionStatus('disconnected')
       } finally {
         if (active) setLoading(false)
@@ -1354,6 +1370,38 @@ export function useConversationChat(
     }
   }, [ownProfile, session, visibleConversationId])
 
+  const deleteGroupMessage = useCallback(async (messageId: string) => {
+    const userId = session?.user.id
+    const roomId = visibleConversationId
+    if (!userId || !roomId || kind !== 'group') return false
+    try {
+      const client = requireSupabase()
+      const { error: deleteError } = await client.rpc('delete_group_message', { p_message_id: messageId })
+      if (deleteError) throw deleteError
+      const { data, error: messageError } = await client
+        .from('messages')
+        .select(messageColumns)
+        .eq('conversation_id', roomId)
+        .eq('id', messageId)
+        .single()
+      if (messageError) throw messageError
+      if (!isMessageRow(data)) throw new Error('The chat service returned an invalid deleted message.')
+      if (activeUserId.current !== userId || activeConversationId.current !== roomId) return false
+      setMessages((current) => mergeMessages(current, [{
+        ...toMessage(data, profilesRef.current.get(data.sender_id ?? '') ?? undefined, userId),
+        reactions: [],
+      }]))
+      setError('')
+      return true
+    } catch (deleteError) {
+      console.error('Could not moderate a group message.', deleteError)
+      if (activeUserId.current === userId && activeConversationId.current === roomId) {
+        setError(`Message could not be deleted: ${errorText(deleteError)}`)
+      }
+      return false
+    }
+  }, [kind, session, visibleConversationId])
+
   const loadEarlier = useCallback(async () => {
     const oldest = visibleMessages[0]
     if (!visibleConversationId || !oldest?.createdAt || loadingEarlier || !hasMore) return
@@ -1477,7 +1525,7 @@ export function useConversationChat(
           sticker: stickersById.get(row.id),
           replyPreview: parent
             ? {
-                author: parent.sender_id ? profilesRef.current.get(parent.sender_id)?.username ?? 'former member' : 'former member',
+                author: parent.sender_id ? profilesRef.current.get(parent.sender_id)?.username ?? 'Member' : 'User deleted',
                 body: parent.body,
               }
             : undefined,
@@ -1527,6 +1575,7 @@ export function useConversationChat(
     editMessage,
     deleteMessageForMe,
     deleteMessageForEveryone,
+    deleteGroupMessage,
   }
 }
 

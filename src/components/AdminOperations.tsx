@@ -10,8 +10,9 @@ import {
 } from '../lib/admin-console'
 import { ConfirmDialog } from './ConfirmDialog'
 import { CommunitySettingsAdmin } from './CommunitySettingsAdmin'
+import { requireSupabase } from '../lib/supabase'
 
-type Pane = 'overview' | 'members' | 'administrators' | 'moderation' | 'community' | 'audit'
+type Pane = 'overview' | 'members' | 'administrators' | 'moderation' | 'community' | 'groups' | 'audit'
 
 type AdminOperationsProps = {
   userId: string
@@ -26,6 +27,13 @@ type GeneralMessage = {
   body: string
   author: string
   created_at: string
+}
+
+type AdminGroup = {
+  conversation_id: string
+  title: string | null
+  avatar_path: string | null
+  member_count: number
 }
 
 function localDateTimeValue(date: Date) {
@@ -43,6 +51,7 @@ const panes: Array<{ id: Pane; label: string }> = [
   { id: 'administrators', label: 'Administrators' },
   { id: 'moderation', label: 'Moderation' },
   { id: 'community', label: 'Group profile' },
+  { id: 'groups', label: 'Created groups' },
   { id: 'audit', label: 'Audit log' },
 ]
 
@@ -61,6 +70,7 @@ export function AdminOperations({
   const [administrators, setAdministrators] = useState<AdminRole[]>([])
   const [messages, setMessages] = useState<GeneralMessage[]>([])
   const [auditEntries, setAuditEntries] = useState<AdminAuditEntry[]>([])
+  const [groups, setGroups] = useState<AdminGroup[]>([])
   const [email, setEmail] = useState('')
   const [messageId, setMessageId] = useState('')
   const [startAt, setStartAt] = useState(() => localDateTimeValue(new Date(Date.now() - 7 * 86400000)))
@@ -105,6 +115,11 @@ export function AdminOperations({
         const { entries } = await adminConsoleAction<{ entries: AdminAuditEntry[] }>({ action: 'audit-log' })
         if (generation !== loadGeneration.current) return
         setAuditEntries(entries)
+      } else if (targetPane === 'groups') {
+        const { data, error: groupsError } = await requireSupabase().rpc('get_all_groups_for_administrator')
+        if (groupsError) throw groupsError
+        if (generation !== loadGeneration.current) return
+        setGroups(data)
       }
     } catch (loadError) {
       if (generation !== loadGeneration.current) return
@@ -190,6 +205,30 @@ export function AdminOperations({
           await adminConsoleAction({ action: 'delete-message', messageId: targetId })
           setMessageId('')
         }, 'Message deleted for everyone.')
+      },
+    })
+  }
+
+  function deleteGroup(group: AdminGroup) {
+    const groupName = group.title?.trim() || 'this group'
+    setPendingConfirmation({
+      title: 'Delete this group?',
+      message: `Permanently delete ${groupName}, its messages and media, and its invite links for all members? This cannot be undone.`,
+      confirmLabel: 'Delete group',
+      confirm: () => {
+        void runOperation(async () => {
+          const { data, error: deleteError } = await requireSupabase().functions.invoke<{ deleted: boolean }>('delete-conversation', {
+            body: { conversationId: group.conversation_id },
+          })
+          if (deleteError) {
+            if (deleteError.context instanceof Response) {
+              const payload = await deleteError.context.json().catch(() => null) as { error?: string } | null
+              throw new Error(payload?.error ?? deleteError.message)
+            }
+            throw new Error(deleteError.message)
+          }
+          if (!data?.deleted) throw new Error('The group deletion service returned an invalid response.')
+        }, `${groupName} was deleted for all members.`)
       },
     })
   }
@@ -320,6 +359,15 @@ export function AdminOperations({
                 </span>
               </article>)}
               {!auditEntries.length && <div className="admin-empty-state"><p>No administrator actions recorded yet.</p></div>}
+            </div>}
+            {pane === 'groups' && <div className="admin-ops-list">
+              <p className="admin-section-note">Review groups created by members. Deletion permanently removes the group and its messages for everyone.</p>
+              {groups.map((group) => <article className="admin-ops-row" key={group.conversation_id}>
+                <span className="admin-ops-avatar"><Users size={15} /></span>
+                <span className="admin-ops-row-copy"><strong>{group.title?.trim() || 'Untitled group'}</strong><small>{group.member_count} members · Group ID</small><code>{group.conversation_id}</code></span>
+                <button className="admin-danger-button" disabled={busy} onClick={() => deleteGroup(group)} type="button"><Trash2 size={14} /> Delete group</button>
+              </article>)}
+              {!groups.length && <div className="admin-empty-state"><p>No member-created groups are available.</p></div>}
             </div>}
             {pane === 'community' && <CommunitySettingsAdmin
               key={`${communityName}:${communityAvatarPath ?? ''}`}

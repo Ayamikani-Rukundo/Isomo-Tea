@@ -1,6 +1,6 @@
-# Isomo Support
+# i Fam
 
-Isomo Support is a responsive, alias-based peer-support space for Isomo Academy. It invites people to share what they are struggling with, listen to one another, and offer support; the familiar group and one-to-one messaging features remain in place. It is not professional counseling or emergency care, and members should share only what feels right for them. The existing React/Capacitor application includes Supabase-backed scholar and administrator authentication, persistent Support Circle and one-to-one conversations, and source implementations for media, polls, mentions, stickers, moderation, and account deletion. The newer migrations and Edge Functions have not been applied/deployed or live-tested from this workspace. **Do not treat those paths as available against the hosted project until deployment and multi-account verification.**
+**i Fam** means **Isomo Family**. It is a responsive, alias-based peer-support space for Isomo Academy. It invites people to share what they are struggling with, listen to one another, and offer support; the familiar group and one-to-one messaging features remain in place. It is not professional counseling or emergency care, and members should share only what feels right for them. The existing React/Capacitor application includes Supabase-backed scholar and administrator authentication, persistent Support Circle and one-to-one conversations, and source implementations for media, polls, mentions, stickers, moderation, and account deletion. The newer migrations and Edge Functions have not been applied/deployed or live-tested from this workspace. **Do not treat those paths as available against the hosted project until deployment and multi-account verification.**
 
 ## Requirements
 
@@ -66,7 +66,7 @@ The root [`vercel.json`](./vercel.json) selects Vite, builds with `npm run build
 
 The APK download button appears beside **Install this app**. Until `VITE_ANDROID_APK_URL` is configured, it stays disabled and explains that a release link is still needed. Use a public GitHub Release asset or public file host; a private repository URL, local path, or temporary build URL will not work for users. Do not publish the current debug APK as a production release.
 
-Browsers and Windows control whether an install prompt is offered, whether the installed app opens after installation, and whether it is pinned to the taskbar. Isomo Support can provide accurate pinning instructions but cannot force those operating-system actions. Installed PWAs can use the small reload control beside the sign-in branding.
+Browsers and Windows control whether an install prompt is offered, whether the installed app opens after installation, and whether it is pinned to the taskbar. i Fam can provide accurate pinning instructions but cannot force those operating-system actions. Installed PWAs can use the small reload control beside the sign-in branding.
 
 ## Supabase environment configuration (Phase 2)
 
@@ -135,6 +135,14 @@ Migration `202611120007_rename_community.sql` updates known legacy titles to Iso
 Phrase-style usernames such as `No way out` require the additive migration `202611120004_phrase_usernames.sql` after `202611120003`. It updates the profile constraint, availability RPC, username-change RPC, and mention trigger; mentions containing spaces use the quoted form `@"No way out"`. Deploy the updated `scholar-register` and `scholar-login` Edge Functions as well, since both use the shared username validator. Neither the migration nor those function changes have been deployed or live-tested from this workspace.
 
 Emoji usernames require the additive migration `202611120005_emoji_usernames.sql` after `202611120004`, followed by redeploying the updated `scholar-register` and `scholar-login` Edge Functions. It updates the database username constraint, availability and update RPCs, and server-side mention parser. The web client also highlights mentions with emoji names. The migration and functions have not been applied or deployed to the hosted project.
+
+Member-created groups, admin roles, invite links, group settings, leaving/deleting groups, group-admin message moderation, and permanent private-chat deletion require `supabase/migrations/202611180001_group_conversations_and_chat_deletion.sql` and the `delete-conversation` Edge Function. Apply the migration once only after the target project has the chat, media, community-profile, and account migrations through `202611120006`; inspect the remote schema and migration history first. Then deploy:
+
+```powershell
+npx supabase functions deploy delete-conversation --project-ref YOUR_PROJECT_REF
+```
+
+The function uses platform-provided server credentials. Private-chat deletion removes the conversation and messages for both participants and cleans stored media; group deletion also removes the group photo and invite links. Group invites expire after 7 days or 50 joins. The application admin can review and delete member-created groups under **Administration → Dashboard & tools → Created groups**. Account deletion now removes a deleted member's Support Circle messages, private inboxes label a deleted peer as **User deleted**, and username notices no longer include the new username. These changes remain unavailable until the migration and function are deployed and tested with multiple accounts.
 
 Background message alerts and cross-device snoozing require `202611120006_message_push_notifications.sql`, a deployed `send-message-push` Edge Function, and a Supabase Database Webhook on `public.messages` INSERT. Apply it after the earlier account migrations. Browser/PWA delivery uses VAPID Web Push; native Android delivery uses Firebase Cloud Messaging (FCM). Neither transport works until its secrets and provider configuration are installed. This workspace has not applied the migration or verified delivery against the hosted project.
 
@@ -267,9 +275,9 @@ Database policies and function behavior are documented in [DATABASE_SCHEMA.md](.
 
 The native Capacitor Android project is in `android/`, with app name, application ID, launcher/adaptive icon, splash assets, and keyboard resize behavior configured. MEmu's Android 9 / Chrome 68 WebView has been launch-tested, and the login screen renders. Authenticated messaging, media, and voice still need broader device testing; a browser preview is not a substitute for native testing.
 
-The Android asset sources are in `assets/`. After changing them, regenerate the native resources with `npm run android:assets`; sync the current web build with `npm run android:sync`. In Android Studio, open the project with `npm run android:open`. A debug APK can be built with `.\gradlew.bat assembleDebug` from the `android/` directory after configuring `JAVA_HOME` and `ANDROID_SDK_ROOT`; Gradle writes it to `android\app\build\outputs\apk\debug\app-debug.apk`. This debug APK is not a release build.
+The supplied i Fam logo is the source for Android resources in `assets/` and browser/PWA icons in `public/icons/`. After changing the Android asset sources, regenerate the native resources with `npm run android:assets`; sync the current web build with `npm run android:sync`. In Android Studio, open the project with `npm run android:open`. A debug APK can be built with `.\gradlew.bat assembleDebug` from the `android/` directory after configuring `JAVA_HOME` and `ANDROID_SDK_ROOT`; Gradle writes it to `android\app\build\outputs\apk\debug\app-debug.apk`. This debug APK is not a release build.
 
-To build and sign the next release APK consistently into `New folder\built`, run `.\scripts\build-release.ps1 -Version 1.4.0` from the project root after completing the Firebase setup above. The script syncs the latest web bundle, builds the unsigned release, signs it with `New folder\isomo-tea-release.jks`, verifies the signature, and writes `New folder\built\IsomoSupport-1.4.0.apk`. This source is set to `versionCode 5`, `versionName "1.4.0"`. The keystore and Firebase `google-services.json` are ignored by Git, but keep secure backups and never commit or share them.
+To build and sign an Android release APK consistently into `New folder\built`, run `.\scripts\build-release.ps1 -Version VERSION` from the project root after completing the Firebase setup above. The script syncs the latest web bundle, builds the unsigned release, signs it with the existing release keystore, verifies the signature, and writes `New folder\built\iFam-VERSION.apk`. The keystore and Firebase `google-services.json` are ignored by Git, but keep secure backups and never commit or share them.
 
 Android message alerts use Firebase Cloud Messaging, with permission requested from **Profile → Activity notifications**. Reliable background delivery requires the Firebase app configuration and deployed message-push backend described above.
 
