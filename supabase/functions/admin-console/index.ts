@@ -2,6 +2,13 @@ import { corsHeaders, isOptions } from '../_shared/http.ts'
 import { requireAdministrator } from '../_shared/supabase.ts'
 
 const communityAvatarBucket = 'isomo-community-assets'
+const retainedAdministratorEmail = 'idp.damn@gmail.com'
+const fullResetConfirmationPhrase = 'RESET EVERYTHING EXCEPT ADMIN'
+const applicationStorageBuckets = [
+  'isomo-chat-media',
+  'isomo-profile-avatars',
+  communityAvatarBucket,
+]
 type JsonRecord = Record<string, unknown>
 
 function isRecord(value: unknown): value is JsonRecord {
@@ -27,6 +34,32 @@ function validIsoDate(value: unknown): value is string {
 function validCommunityAvatarPath(value: unknown, userId: string): value is string {
   return typeof value === 'string'
     && new RegExp(`^${userId}/[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\\.(jpg|png|webp)$`, 'i').test(value)
+}
+
+async function listStorageFiles(service: Awaited<ReturnType<typeof requireAdministrator>>['service'], bucket: string) {
+  const paths: string[] = []
+  const pageSize = 1000
+  const visitedFolders = new Set<string>()
+
+  async function visit(folder: string) {
+    if (visitedFolders.has(folder)) return
+    visitedFolders.add(folder)
+    for (let offset = 0; ; offset += pageSize) {
+      const { data: entries, error } = await service.storage
+        .from(bucket)
+        .list(folder, { limit: pageSize, offset, sortBy: { column: 'name', order: 'asc' } })
+      if (error) throw error
+      for (const entry of entries ?? []) {
+        const path = folder ? `${folder}/${entry.name}` : entry.name
+        if (entry.id === null) await visit(path)
+        else paths.push(path)
+      }
+      if (!entries || entries.length < pageSize) break
+    }
+  }
+
+  await visit('')
+  return paths
 }
 
 async function writeAudit(
@@ -70,20 +103,147 @@ Deno.serve(async (request) => {
       const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString()
       const [
         { count: members, error: membersError },
-        { count: administrators, error: administratorsError },
+        { data: administratorRoles, error: administratorsError },
         { count: messages, error: messagesError },
         { count: activeCodes, error: codesError },
-        { count: recentMembers, error: recentMembersError },
       ] = await Promise.all([
         service.from('profiles').select('id', { count: 'exact', head: true }),
-        service.from('administrators').select('user_id', { count: 'exact', head: true }),
+        service.from('administrators').select('user_id'),
         service.from('messages').select('id', { count: 'exact', head: true }).is('deleted_at', null),
         service.from('access_codes').select('id', { count: 'exact', head: true }).eq('active', true),
-        service.from('profiles').select('id', { count: 'exact', head: true }).gte('created_at', since),
       ])
-      const error = membersError ?? administratorsError ?? messagesError ?? codesError ?? recentMembersError
+      const error = membersError ?? administratorsError ?? messagesError ?? codesError
       if (error) throw error
-      return response({ overview: { members, administrators, messages, activeCodes, recentMembers } })
+      const administratorIds = (administratorRoles ?? []).map((role) => role.user_id)
+      let recentMembersQuery = service.from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', since)
+      if (administratorIds.length) {
+        recentMembersQuery = recentMembersQuery.not('id', 'in', `(${administratorIds.join(',')})`)
+      }
+      const { count: recentMembers, error: recentMembersError } = await recentMembersQuery
+      if (recentMembersError) throw recentMembersError
+      return response({
+        overview: {
+          members,
+          administrators: administratorIds.length,
+          messages,
+          activeCodes,
+          recentMembers,
+        },
+      })
+    }
+
+    if (action === 'reset-all-data') {
+      if (user.email?.trim().toLowerCase() !== retainedAdministratorEmail
+        || body.confirmationEmail !== retainedAdministratorEmail
+        || body.confirmationPhrase !== fullResetConfirmationPhrase) {
+        return response({ error: 'Only the i Fam User account can run this reset, with the exact email and confirmation phrase.' }, 403)
+      }
+
+      const [storageBucketResult, accountResult] = await Promise.all([
+        service.storage.listBuckets(),
+        service.auth.admin.listUsers({ page: 1, perPage: 1000 }),
+      ])
+      if (storageBucketResult.error) {
+        return response({ error: `Reset stopped before deleting data because Storage buckets could not be listed: ${storageBucketResult.error.message}` }, 500)
+      }
+      if (accountResult.error) {
+        return response({ error: `Reset stopped before deleting data because Auth accounts could not be listed: ${accountResult.error.message}` }, 500)
+      }
+
+      const accounts = [...accountResult.data.users]
+      for (let page = 2; accountResult.data.users.length === 1000; page += 1) {
+        const { data, error } = await service.auth.admin.listUsers({ page, perPage: 1000 })
+        if (error) {
+          return response({ error: `Reset stopped before deleting data because Auth accounts could not be listed: ${error.message}` }, 500)
+        }
+        accounts.push(...data.users)
+        if (data.users.length < 1000) break
+      }
+      if (!accounts.some((account) => account.id === user.id)) {
+        return response({ error: 'The retained administrator account was not found.' }, 409)
+      }
+
+      const existingBuckets = new Set(storageBucketResult.data.map((bucket) => bucket.name))
+      const filesByBucket = new Map<string, string[]>()
+      for (const bucket of applicationStorageBuckets) {
+        if (existingBuckets.has(bucket)) {
+          try {
+            filesByBucket.set(bucket, await listStorageFiles(service, bucket))
+          } catch (error) {
+            const detail = error instanceof Error ? error.message : 'Storage list failed.'
+            return response({ error: `Reset stopped before deleting accounts because the ${bucket} bucket could not be listed: ${detail}` }, 500)
+          }
+        }
+      }
+
+      const otherAccounts = accounts.filter((account) => account.id !== user.id)
+      let deletedAccounts = 0
+      for (const account of otherAccounts) {
+        const { error } = await service.auth.admin.deleteUser(account.id)
+        if (error) {
+          console.error('Application reset stopped while removing other Auth accounts.', {
+            deletedAccounts,
+            error: error.message,
+          })
+          return response({
+            error: `Reset is incomplete: Auth stopped after ${deletedAccounts} other account(s) were removed. Auth may already have removed account-linked rows. Run the reset again to continue; the full database and Storage reset has not run yet.`,
+          }, 500)
+        }
+        deletedAccounts += 1
+      }
+
+      const { data: resetResult, error: resetError } = await service.rpc('admin_reset_application_data', {
+        p_actor_id: user.id,
+        p_confirmation_email: retainedAdministratorEmail,
+        p_confirmation_phrase: fullResetConfirmationPhrase,
+        p_deleted_auth_accounts: deletedAccounts,
+      })
+      if (resetError) {
+        console.error('Application reset could not clear database content.', {
+          deletedAccounts,
+          error: resetError.message,
+        })
+        return response({
+          error: `Other Auth accounts were removed, but the database reset did not finish. Run the reset again to complete it. ${resetError.message}`,
+        }, 500)
+      }
+      if (!isRecord(resetResult) || resetResult.reset !== true) {
+        return response({
+          error: 'Other Auth accounts were removed, but the database reset returned an invalid result. Run the reset again to complete it.',
+        }, 500)
+      }
+
+      let removedStorageObjects = 0
+      const storageFailures: Array<{ bucket: string; error: string }> = []
+      for (const [bucket, paths] of filesByBucket) {
+        for (let offset = 0; offset < paths.length; offset += 100) {
+          const batch = paths.slice(offset, offset + 100)
+          const { error } = await service.storage.from(bucket).remove(batch)
+          if (error) {
+            console.error('Some uploaded files could not be removed during application reset.', {
+              bucket,
+              error: error.message,
+            })
+            storageFailures.push({ bucket, error: error.message })
+          } else {
+            removedStorageObjects += batch.length
+          }
+        }
+      }
+      if (storageFailures.length) {
+        return response({
+          error: `The database reset completed and ${removedStorageObjects} uploaded file(s) were removed, but some files remain in Storage. Run the reset again to retry Storage cleanup.`,
+        }, 500)
+      }
+
+      return response({
+        reset: true,
+        deletedAuthAccounts: deletedAccounts,
+        removedStorageObjects,
+        storageCleanupComplete: true,
+      })
     }
 
     if (action === 'update-community-settings') {

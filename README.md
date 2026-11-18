@@ -236,6 +236,10 @@ Then deploy the updated administrator functions:
 
 No new secret is required: the functions use Supabase’s injected service-role credential server-side and require an administrator’s session JWT. Existing scholar registration, login, and `AUTH_RATE_LIMIT_PEPPER` configuration are unchanged.
 
+### Owner-only full data reset
+
+The irreversible reset control is restricted to the administrator account `idp.damn@gmail.com`. After backing up the project, apply `202611180002_repair_deleted_account_basics.sql` and `202611180003_owner_only_full_reset.sql` in that order, after migrations 011, 120004, 120006, and 180001. Deploy the current `admin-console` function and frontend. In the administrator Overview, enter the retained email and exact phrase `RESET EVERYTHING EXCEPT ADMIN`, then confirm. The reset retains that Auth account, its administrator role, the profile name `i Fam User`, and the required Support Circle; it deletes other Auth users, app chat data, access codes, prior audit history, push registrations, and objects in the app's three Storage buckets. It preserves schema, policies, functions, buckets, and Supabase platform data. Registration will remain unavailable until a new access code is created. If a partial-failure warning appears, run the reset again to continue cleanup.
+
 #### Media function deployment
 
 After applying migrations 003–009 and reviewing the Storage metadata layout, configure `MEDIA_CLEANUP_SECRET` in **Edge Functions → Secrets**, then deploy the media functions:

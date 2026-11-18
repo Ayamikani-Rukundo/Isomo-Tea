@@ -36,6 +36,9 @@ type AdminGroup = {
   member_count: number
 }
 
+const retainedAdministratorEmail = 'idp.damn@gmail.com'
+const fullResetConfirmationPhrase = 'RESET EVERYTHING EXCEPT ADMIN'
+
 function localDateTimeValue(date: Date) {
   const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
   return localDate.toISOString().slice(0, 16)
@@ -72,6 +75,8 @@ export function AdminOperations({
   const [auditEntries, setAuditEntries] = useState<AdminAuditEntry[]>([])
   const [groups, setGroups] = useState<AdminGroup[]>([])
   const [email, setEmail] = useState('')
+  const [resetEmail, setResetEmail] = useState('')
+  const [resetPhrase, setResetPhrase] = useState('')
   const [messageId, setMessageId] = useState('')
   const [startAt, setStartAt] = useState(() => localDateTimeValue(new Date(Date.now() - 7 * 86400000)))
   const [endAt, setEndAt] = useState(() => localDateTimeValue(new Date()))
@@ -137,17 +142,27 @@ export function AdminOperations({
     return () => { active = false }
   }, [load, memberOffset, pane])
 
-  async function runOperation(operation: () => Promise<void>, successText: string) {
+  async function runOperation(
+    operation: () => Promise<void>,
+    successText: string | (() => string),
+    refreshOnError = false,
+  ) {
     setBusy(true)
     setError('')
     setNotice('')
     try {
       await operation()
-      setNotice(successText)
+      setNotice(typeof successText === 'function' ? successText() : successText)
       setLoading(true)
       await load(pane)
     } catch (operationError) {
-      setError(operationError instanceof Error ? operationError.message : 'The administrator action failed.')
+      const errorMessage = operationError instanceof Error ? operationError.message : 'The administrator action failed.'
+      setError(errorMessage)
+      if (refreshOnError) {
+        setLoading(true)
+        await load(pane)
+        setError(errorMessage)
+      }
     } finally {
       setBusy(false)
     }
@@ -258,6 +273,47 @@ export function AdminOperations({
     })
   }
 
+  function resetApplicationData(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    setError('')
+    setNotice('')
+    if (resetEmail.trim().toLowerCase() !== retainedAdministratorEmail) {
+      setError(`Type ${retainedAdministratorEmail} to confirm which administrator account must be kept.`)
+      return
+    }
+    if (resetPhrase !== fullResetConfirmationPhrase) {
+      setError(`Type ${fullResetConfirmationPhrase} exactly to continue.`)
+      return
+    }
+
+    setPendingConfirmation({
+      title: 'Permanently reset application data?',
+      message: `Back up the Supabase project first. This permanently deletes every other Supabase Auth account, all messages and conversations except the required Support Circle, all access codes, other profiles/settings/admin roles, push registrations, prior audit history, and uploaded files. It keeps only ${retainedAdministratorEmail} as the administrator and resets that profile name to “i Fam User”. Schema, migrations, policies, functions, and Storage buckets remain. This cannot be undone.`,
+      confirmLabel: 'Reset all data permanently',
+      confirm: () => {
+        let resetSummary = ''
+        void runOperation(async () => {
+          const result = await adminConsoleAction<{
+            reset: boolean
+            deletedAuthAccounts: number
+            removedStorageObjects: number
+            storageCleanupComplete: boolean
+          }>({
+            action: 'reset-all-data',
+            confirmationEmail: retainedAdministratorEmail,
+            confirmationPhrase: fullResetConfirmationPhrase,
+          })
+          if (!result.reset || !result.storageCleanupComplete) {
+            throw new Error('The reset did not complete. Refresh the overview and retry after checking the administrator error.')
+          }
+          resetSummary = `Reset complete: ${result.deletedAuthAccounts} other account(s), ${result.removedStorageObjects} uploaded file(s), all chats, and all access codes removed. Only i Fam User remains. Create a new access code before allowing registrations.`
+          setResetEmail('')
+          setResetPhrase('')
+        }, () => resetSummary, true)
+      },
+    })
+  }
+
   const stats = overview ? [
     { label: 'Members', value: overview.members, icon: Users },
     { label: 'Administrators', value: overview.administrators, icon: Shield },
@@ -287,12 +343,20 @@ export function AdminOperations({
         {notice && <p className="admin-feedback success" role="status">{notice}</p>}
         {loading ? <div className="admin-empty-state"><RefreshCw size={20} className="spinning" /><p>Loading administrator data…</p></div> : (
           <>
-            {pane === 'overview' && <div className="admin-stat-grid">
-              {stats.map(({ label, value, icon: Icon }) => <article className="admin-stat-card" key={label}>
-                <span><Icon size={16} /></span><small>{label}</small><strong>{value.toLocaleString()}</strong>
-              </article>)}
-              <article className="admin-stat-card"><span><Check size={16} /></span><small>Active access codes</small><strong>{overview?.activeCodes ?? 0}</strong></article>
-            </div>}
+            {pane === 'overview' && <>
+              <div className="admin-stat-grid">
+                {stats.map(({ label, value, icon: Icon }) => <article className="admin-stat-card" key={label}>
+                  <span><Icon size={16} /></span><small>{label}</small><strong>{value.toLocaleString()}</strong>
+                </article>)}
+                <article className="admin-stat-card"><span><Check size={16} /></span><small>Active access codes</small><strong>{overview?.activeCodes ?? 0}</strong></article>
+              </div>
+              <form className="admin-card admin-history-form" onSubmit={resetApplicationData}>
+                <div className="admin-card-heading"><span className="admin-icon-box"><Trash2 size={16} /></span><div><h2>Reset all application data</h2><p>Back up Supabase first. Keep only the named administrator account. This permanently deletes other Auth accounts, chat data, access codes, previous audit history, other settings, push registrations, and files in Isomo's Storage buckets. Database schema and backend security configuration remain. A new access code is required before registrations can resume.</p></div></div>
+                <label className="admin-field"><span>Type the administrator email to keep</span><input autoComplete="off" onChange={(event) => setResetEmail(event.target.value)} required type="email" value={resetEmail} /></label>
+                <label className="admin-field"><span>Type {fullResetConfirmationPhrase}</span><input autoComplete="off" onChange={(event) => setResetPhrase(event.target.value)} required value={resetPhrase} /></label>
+                <button className="admin-danger-button" disabled={busy} type="submit">{busy ? 'Resetting…' : 'Review full reset'}</button>
+              </form>
+            </>}
 
             {pane === 'members' && <div className="admin-ops-list">
               <p className="admin-section-note">Member access is enforced by Supabase Auth. Page {Math.floor(memberOffset / 100) + 1}.</p>
