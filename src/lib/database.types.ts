@@ -165,6 +165,7 @@ export type Database = {
     }
     Views: Record<string, never>
     Functions: {
+      repair_my_account: { Args: Record<PropertyKey, never>; Returns: undefined }
       username_is_available: { Args: { p_username: string }; Returns: boolean }
       set_my_username: { Args: { p_username: string }; Returns: string }
       consume_access_code: { Args: { p_code: string }; Returns: boolean }

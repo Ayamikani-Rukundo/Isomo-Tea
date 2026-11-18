@@ -83,7 +83,11 @@ export async function availableUsernameSuggestions() {
 }
 
 export async function loadProfile(userId: string): Promise<PublicProfile> {
-  const { data, error } = await requireSupabase()
+  const client = requireSupabase()
+  const { error: repairError } = await client.rpc('repair_my_account')
+  if (repairError) throw repairError
+
+  const { data, error } = await client
     .from('profiles')
     .select('id, username, avatar_url')
     .eq('id', userId)

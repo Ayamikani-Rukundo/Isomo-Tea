@@ -26,7 +26,7 @@ Migration [202611120007_rename_community.sql](./supabase/migrations/202611120007
 | `user_settings` | Per-user theme and notification preference | Owner-only select/insert/update. |
 | `auth_rate_limits` | Hashed network identifier, endpoint and attempt window | RLS enabled; no browser grants. The service-only atomic function updates it. |
 
-`auth.users` insertion runs a trigger to create a generated private alias, default settings, and membership in the seeded Support Circle conversation. Scholar registration then replaces the generated alias with the requested unique username. Deleting a user cascades their profile, settings, and memberships; message sender IDs are set null so deleting an account does not block or erase shared history.
+`auth.users` insertion runs a trigger to create a generated private alias, default settings, and membership in the Support Circle conversation. Scholar registration then replaces the generated alias with the requested unique username. Migration `202611180002_repair_deleted_account_basics.sql` restores missing profiles, settings, Support Circle membership, and group creator membership for existing Auth accounts; signed-in profile loading also repairs only the caller's missing records. It never grants administrator roles or deletes data. A database trigger prevents deleting the required Support Circle row. Deleting a user cascades their profile, settings, and memberships; message sender IDs are set null so deleting an account does not block or erase shared history.
 
 The private `isomo-profile-avatars` Storage bucket is created by migration 012. It allows image MIME types up to 5 MiB. Signed-in users can read avatar objects, but uploads and deletes are restricted to the authenticated user's UUID folder; the browser stores the object path in `profiles.avatar_url` and resolves short-lived signed URLs for display. Users can clear their profile photo; the updated `account-delete` Edge Function removes avatar objects during account deletion.
 
@@ -64,6 +64,12 @@ The SQL checks in `supabase/tests/*.test.sql` assert RLS, grants, membership bou
 Use the administrator dashboard to create codes; do not insert them manually. The dashboard can display the submitted code once after successful creation, while the database stores only its salted bcrypt hash. Codes have a positive finite maximum-use count and may optionally expire. Deactivation and selected-code replacement are administrator-authorized; replacement and old-code deactivation are atomic.
 
 Bootstrap exactly one first admin through the Supabase project owner: create/invite the email account, then add its auth user UUID to `public.administrators`. There is no unauthenticated admin grant path. Further administrators are invited through the Edge Function after it verifies the caller's role.
+
+## Safe recovery and reset
+
+If rows were deleted from application tables, back up the project first and apply `202611180002_repair_deleted_account_basics.sql` once in the Supabase SQL Editor, after the core schema and `202611180001_group_conversations_and_chat_deletion.sql` are present. It repairs missing account basics for Auth users that still exist and protects the Support Circle from deletion. It cannot restore deleted Auth accounts, administrator roles, private/group memberships other than group creators, messages, or uploaded files. Restore those from a Supabase backup/PITR if needed; do not recreate administrator roles by guessing user IDs.
+
+To clear Support Circle chat history, use the administrator dashboard's **Clear Support Circle history** operation. To remove a private or member-created group conversation, use its in-app deletion flow. Do not delete rows from `auth.users`, `administrators`, `profiles`, `user_settings`, `conversations`, or `conversation_members` to reset chat content. Those tables contain account and authorization/system state, not just chat history.
 
 ## Remaining scope
 
