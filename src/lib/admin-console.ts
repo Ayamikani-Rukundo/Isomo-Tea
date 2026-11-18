@@ -46,7 +46,16 @@ async function invokeFunction<T>(name: string, body: Record<string, unknown>) {
 }
 
 export function adminConsoleAction<T>(body: Record<string, unknown>) {
-  return invokeFunction<T>('admin-console', body)
+  return invokeFunction<T>('admin-console', body).catch((error: unknown) => {
+    if (
+      body.action === 'reset-all-data'
+      && error instanceof Error
+      && error.message === 'Choose a valid administrator action.'
+    ) {
+      throw new Error('The deployed admin-console function is outdated or belongs to a different Supabase project. Deploy the current admin-console function to the same project as this app, then try again.')
+    }
+    throw error
+  })
 }
 
 export async function inviteAdministrator(email: string) {
